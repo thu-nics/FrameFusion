@@ -1,0 +1,17 @@
+*.egg-info/*
+.vscode/
+
+local/
+figures/
+data/
+VNBench/
+
+*.pyc
+*.json
+*.jsonl
+*.png
+*.pdf
+*.csv
+*.pt
+*.sh
+*.nsys-rep
