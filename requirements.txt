@@ -5,4 +5,8 @@ transformers==4.45.2
 accelerate==1.0.1
 datasets==3.2.0
 
+# Llava-Video
+einops
+decord
+av
 sentencepiece

@@ -50,6 +50,17 @@ def parse_args():
         "--torch-dtype", type=str, default="bfloat16", help="Torch data type"
     )
 
+    # FrameFusion arguments
+    parser.add_argument(
+        "--framefusion-cost", type=float, default=0.3, help="FrameFusion cost"
+    )
+    parser.add_argument(
+        "--framefusion-similarity-lower-bound", type=float, default=0.6, help="FrameFusion similarity lower bound"
+    )
+    parser.add_argument(
+        "--framefusion-ratio-lower-bound", type=float, default=0.1, help="FrameFusion ratio lower bound"
+    )
+
     # Data arguments
     parser.add_argument(
         "--video-path",
@@ -149,9 +160,9 @@ if __name__ == "__main__":
     config_dict = {
         "dense": dict(),
         "framefusion": {
-            "cost": 0.3,
-            "similarity_lower_bound": 0.7,
-            "ratio_lower_bound": 0.1,
+            "cost": args.framefusion_cost,
+            "similarity_lower_bound": args.framefusion_similarity_lower_bound,
+            "ratio_lower_bound": args.framefusion_ratio_lower_bound,
         },
     }
 

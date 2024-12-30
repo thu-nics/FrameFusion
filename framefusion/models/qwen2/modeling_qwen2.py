@@ -15,7 +15,11 @@ from transformers.models.qwen2.modeling_qwen2 import Qwen2Attention, Qwen2SdpaAt
 from framefusion.main import FrameFusion, find_contigious_latter_index
 from accelerate.hooks import add_hook_to_module, ModelHook
 from functools import partial
-from minference import streaming_forward
+try:
+    from minference import streaming_forward
+except ImportError:
+    # minference is not needed if streamingllm is not used
+    streaming_forward = None
 
 TEXT_TOKEN = -1
 IGNORE_TOKEN = -2

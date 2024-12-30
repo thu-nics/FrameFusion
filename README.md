@@ -1,13 +1,29 @@
 # FrameFusion: Combining Similarity and Importance for Video Token Reduction on Large Visual Language Models
 
+FrameFusion reduces the number of tokens in Large Vision-Language Models (LVLMs) by combining similarity-based merging with importance-based pruning. It achieves a 70% vision token reduction, 3.4–4.4× LLM speedups, and 1.6–1.9× end-to-end speedups with minimal performance impact.
+
 ## Environment Setup
 
-Create a new environment and install the dependencies:
+Create a new environment:
 
 ```bash
 conda create -n framefusion python=3.10
+conda activate framefusion
+```
+
+Install the dependencies:
+
+```bash
 pip install -r requirements.txt
 ```
+
+Install FrameFusion:
+
+```bash
+pip install -e .
+```
+
+To use Llava-Video LVLM, you also need to install the dependencies for it. We recommend clone the [official repository](https://github.com/LLaVA-VL/LLaVA-NeXT), then install it with `pip install -e .` in the cloned repository.
 
 ## How to
 
@@ -16,7 +32,7 @@ pip install -r requirements.txt
 We provide an example with LLaVA-Video-7B model to inference on a video with or without FrameFusion in `script/playground/example_llava.py`.
 
 ```bash
-python scripts/playground/example_llava.py
+python script/playground/example_llava.py
 ```
 
 ### Apply FrameFusion
@@ -31,7 +47,7 @@ from framefusion.interface import apply_framefusion
 tokenizer, model, image_processor, max_length = load_pretrained_model("lmms-lab/LLaVA-Video-7B-Qwen2", None, "llava_qwen", torch_dtype="bfloat16", attn_implementation='sdpa', device_map="auto")
 
 # apply FrameFusion
-apply_framefusion(model, cost=0.3, similarity_lower_bound=0.7, ratio_lower_bound=0.1)
+apply_framefusion(model, cost=0.3, similarity_lower_bound=0.6, ratio_lower_bound=0.1)
 
 # use the model as usual
 ```
