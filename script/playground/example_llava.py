@@ -5,7 +5,7 @@ from llava.model.builder import load_pretrained_model
 from llava.mm_utils import tokenizer_image_token
 from llava.constants import IMAGE_TOKEN_INDEX, DEFAULT_IMAGE_TOKEN
 from llava.conversation import conv_templates
-
+ 
 import copy
 import warnings
 from decord import VideoReader, cpu
@@ -16,7 +16,6 @@ import torchvision.transforms as T
 import os
 
 from framefusion.interface import apply_framefusion
-from framefusion.models.qwen2.modeling_qwen2 import compute_density_overhead
 
 warnings.filterwarnings("ignore")
 
