@@ -27,6 +27,20 @@ class FrameFusion(nn.Module):
             self.sparsity_list = sparsity_list
 
     def forward(self, hidden_states, position_embeddings, attention_mask, self_attn_weights = None):
+        """
+        This is the forward method of the FrameFusion class.
+
+        Args:
+            hidden_states (torch.Tensor): A tensor of shape (batch_size, sequence_length, hidden_size).
+            position_embeddings (torch.Tensor): A tensor of shape (batch_size, sequence_length, hidden_size).
+            attention_mask (torch.Tensor): A tensor of shape (batch_size, sequence_length, sequence_length).
+            self_attn_weights (torch.Tensor): A tensor of shape (batch_size, sequence_length, sequence_length).
+
+        Returns:
+            hidden_states (torch.Tensor): A tensor of shape (batch_size, sequence_length, hidden_size).
+            position_embeddings (torch.Tensor): A tensor of shape (batch_size, sequence_length, hidden_size).
+            attention_mask (torch.Tensor): A tensor of shape (batch_size, sequence_length, sequence_length).
+        """
         bsz, q_len, hidden_size = hidden_states.size()
         device = hidden_states.device    
 
@@ -82,10 +96,9 @@ class FrameFusion(nn.Module):
             # update patch type
             self.patch_type = self.patch_type.to(device)[token_mask].reshape(bsz, -1)
             hidden_states = hidden_states[token_mask, :].reshape(bsz, -1, hidden_size)
-            #token_mask = token_mask.to(position_embeddings[0].device)
             position_embeddings[0] = position_embeddings[0][:,token_mask[0],:]
             position_embeddings[1] = position_embeddings[1][:,token_mask[0],:]
-            if attention_mask != None:
+            if attention_mask is not None:
                 attention_mask = attention_mask[:,:,token_mask[0],:][:,:,:,token_mask[0]]
 
         return hidden_states, position_embeddings, attention_mask

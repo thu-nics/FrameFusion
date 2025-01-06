@@ -2,11 +2,10 @@ import argparse
 import torch
 from PIL import Image
 from transformers import AutoModel, AutoTokenizer
-from decord import VideoReader, cpu  # pip install decord
+from decord import VideoReader, cpu
 import pandas as pd
 
 from framefusion.interface import apply_framefusion
-
 
 def parse_args():
     parser = argparse.ArgumentParser(description="Video processing and analysis script")

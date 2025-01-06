@@ -1,6 +1,3 @@
-from types import MethodType
-from functools import partial
-import math
 from typing import List, Optional, Tuple, Union
 import torch
 import torch.utils.checkpoint
@@ -8,45 +5,10 @@ from transformers.cache_utils import Cache, DynamicCache,DynamicCache
 from transformers.models.qwen2.modeling_qwen2 import repeat_kv,apply_rotary_pos_emb, logger, QWEN2_INPUTS_DOCSTRING
 from transformers.modeling_outputs import BaseModelOutputWithPast
 from transformers.utils.doc import add_start_docstrings_to_model_forward
-from transformers.models.qwen2.modeling_qwen2 import Qwen2SdpaAttention, Qwen2DecoderLayer, Qwen2Model
-from functools import partial
-from accelerate.hooks import add_hook_to_module
 
-from framefusion.utils import TEXT_TOKEN, IGNORE_TOKEN, get_attr_by_name
-from framefusion.main import FrameFusion
+from framefusion.utils import scaled_dot_product_attention
 
-def replace_framefusion_forward(
-    model: torch.nn.Module,
-    cost: float,
-    similarity_lower_bound: float,
-    ratio_lower_bound: float,
-    llm_key: str = "model",
-    decoder_layer_key: str = "model.layers",
-):
-    """
-    Replace the forward method of the model with the framefusion forward method.
-    """
-    model.framefusion = FrameFusion(cost, similarity_lower_bound, ratio_lower_bound)
-
-    assert isinstance(get_attr_by_name(model, llm_key), Qwen2Model), f"{llm_key} is not a Qwen2Model"
-
-    get_attr_by_name(model, llm_key).forward = MethodType(partial(Qwen2Model_merge_then_fastv_cost_given_forward, model=model), get_attr_by_name(model, llm_key))
-    for i, decoder_layer in enumerate(get_attr_by_name(model, decoder_layer_key)):
-        assert isinstance(decoder_layer, Qwen2DecoderLayer), f"{decoder_layer_key}[{i}] is not a Qwen2DecoderLayer"
-        
-        # replace the forward method of the decoder layer
-        decoder_layer.forward = MethodType(partial(Qwen2DecoderLayer_merge_then_fastv_cost_given_forward, model = model), decoder_layer)
-        if hasattr(decoder_layer, "_hf_hook"):
-            decoder_layer._old_forward = MethodType(partial(Qwen2DecoderLayer_merge_then_fastv_cost_given_forward, model = model), decoder_layer)
-            add_hook_to_module(decoder_layer, decoder_layer._hf_hook)
-
-        qwen2_attention_instance = decoder_layer.self_attn
-        assert isinstance(qwen2_attention_instance, Qwen2SdpaAttention), f"{decoder_layer_key}[{i}].self_attn is not a Qwen2SdpaAttention"
-
-        # replace the forward method of the attention layer
-        qwen2_attention_instance.forward = MethodType(partial(Qwen2SdpaAttention_merge_then_fastv_cost_given_forward, model=model), qwen2_attention_instance)
-   
-def Qwen2DecoderLayer_merge_then_fastv_cost_given_forward(
+def Qwen2DecoderLayer_merge_then_prune_by_cost_forward(
         self,
         hidden_states: torch.Tensor,
         attention_mask: Optional[torch.Tensor] = None,
@@ -54,11 +16,10 @@ def Qwen2DecoderLayer_merge_then_fastv_cost_given_forward(
         past_key_value: Optional[Tuple[torch.Tensor]] = None,
         output_attentions: Optional[bool] = False,
         use_cache: Optional[bool] = False,
-        model = None,
         cache_position: Optional[torch.LongTensor] = None,
         position_embeddings: Optional[Tuple[torch.Tensor, torch.Tensor]] = None,  # will become mandatory in v4.46
         **kwargs,
-    ) -> Tuple[torch.FloatTensor, Optional[Tuple[torch.FloatTensor, torch.FloatTensor]]]:
+    ) -> Tuple[Tuple[torch.FloatTensor, Optional[Tuple[torch.FloatTensor, torch.FloatTensor]]], torch.Tensor, Optional[torch.Tensor]]:
         """
         Args:
             hidden_states (`torch.FloatTensor`): input to the layer of shape `(batch, seq_len, embed_dim)`
@@ -82,9 +43,8 @@ def Qwen2DecoderLayer_merge_then_fastv_cost_given_forward(
         """
         ### start token merging at layer 0 before attention
         if self.self_attn.layer_idx == 0:
-            hidden_states, position_embeddings, attention_mask = model.framefusion(hidden_states, position_embeddings, attention_mask)
+            hidden_states, position_embeddings, attention_mask = self.framefusion(hidden_states, position_embeddings, attention_mask)
         ### end token merging at layer 0 before attention
-            
 
         residual = hidden_states
 
@@ -104,7 +64,7 @@ def Qwen2DecoderLayer_merge_then_fastv_cost_given_forward(
         hidden_states = residual + hidden_states
 
         ### start token merging or fastv after attention
-        hidden_states, position_embeddings, attention_mask = model.framefusion(hidden_states, position_embeddings, attention_mask, self_attn_weights)
+        hidden_states, position_embeddings, attention_mask = self.framefusion(hidden_states, position_embeddings, attention_mask, self_attn_weights)
         ### end token merging or fastv after attention
     
         # Fully Connected
@@ -121,18 +81,12 @@ def Qwen2DecoderLayer_merge_then_fastv_cost_given_forward(
         if use_cache:
             outputs += (present_key_value,)
 
-        ### start passing the attention_mask to the next layer
-        if attention_mask is not None:
-            outputs += (attention_mask,)
-        ### finish passing the attention_mask to the next layer
-
-        ### start passing the position_embeddings to the next layer
-        outputs += (position_embeddings,)
-        ### finish passing the position_embeddings to the next layer
-
+        ### start return the updated position embeddings and attention mask
+        outputs += (position_embeddings, attention_mask)
         return outputs
+        ### end return the updated position embeddings and attention mask
 
-def Qwen2SdpaAttention_merge_then_fastv_cost_given_forward(
+def Qwen2SdpaAttention_merge_then_prune_by_cost_forward(
         self,
         hidden_states: torch.Tensor,
         attention_mask: Optional[torch.Tensor] = None,
@@ -140,7 +94,6 @@ def Qwen2SdpaAttention_merge_then_fastv_cost_given_forward(
         past_key_value: Optional[Cache] = None,
         output_attentions: bool = False,
         use_cache: bool = False,
-        model = None,
         cache_position: Optional[torch.LongTensor] = None,
         position_embeddings: Optional[Tuple[torch.Tensor, torch.Tensor]] = None,  # will become mandatory in v4.46
     ) -> Tuple[torch.Tensor, Optional[torch.Tensor], Optional[Tuple[torch.Tensor]]]:
@@ -212,39 +165,7 @@ def Qwen2SdpaAttention_merge_then_fastv_cost_given_forward(
     
     ### start storing attn_weights if needed
     attn_weights = None
-    if q_len > 1 and model.framefusion.finish_merging == True and model.framefusion.finish_pruning == False:
-        def scaled_dot_product_attention(query, key, value, num=1, attn_mask=None, dropout_p=0.0,
-            is_causal=False, scale=None, enable_gqa=False) -> torch.Tensor:
-                query = query[:,:,-num:,:]
-                L, S = query.size(-2), key.size(-2)
-                scale_factor = 1 / math.sqrt(query.size(-1)) if scale is None else scale
-                attn_bias = torch.zeros(L, S, dtype=query.dtype, device=query.device)
-
-                if is_causal:
-                    assert attn_mask is None
-                    temp_mask = torch.ones(L, S, dtype=torch.bool, device=query.device).triu(diagonal=S - L + 1)
-                    attn_bias.masked_fill_(temp_mask, float("-inf"))
-                    attn_bias.to(query.dtype)
-
-                if attn_mask is not None:
-                    if attn_mask.dtype == torch.bool:
-                        attn_bias.masked_fill_(attn_mask.logical_not(), float("-inf"))
-                    else:
-                        attn_bias += attn_mask
-
-                if enable_gqa:
-                    key = key.repeat_interleave(query.size(-3)//key.size(-3), -3)
-                    value = value.repeat_interleave(query.size(-3)//value.size(-3), -3)
-
-
-                attn_weight = query@ key.transpose(-2, -1) * scale_factor
-                attn_weight += attn_bias
-                attn_weight = torch.softmax(attn_weight, dim=-1)
-                attn_weight=attn_weight
-                attn_weight = torch.dropout(attn_weight, dropout_p, train=True)
-
-                return attn_weight
-        
+    if (q_len > 1) and (self.framefusion.finish_merging) and (not self.framefusion.finish_pruning):        
         attn_weights = scaled_dot_product_attention(
             query_states,
             key_states,
@@ -282,7 +203,6 @@ def Qwen2Model_merge_then_fastv_cost_given_forward(
         past_key_values: Optional[List[torch.FloatTensor]] = None,
         inputs_embeds: Optional[torch.FloatTensor] = None,
         use_cache: Optional[bool] = None,
-        model = None,
         output_attentions: Optional[bool] = None,
         output_hidden_states: Optional[bool] = None,
         return_dict: Optional[bool] = None,
@@ -380,6 +300,11 @@ def Qwen2Model_merge_then_fastv_cost_given_forward(
                     position_embeddings=position_embeddings,
                 )
 
+            ### start update the attention mask and position embeddings modified by framefusion
+            position_embeddings = layer_outputs[-2]
+            causal_mask = layer_outputs[-1]
+            ### end changing position embedding
+
             hidden_states = layer_outputs[0]
 
             if use_cache:
@@ -387,15 +312,6 @@ def Qwen2Model_merge_then_fastv_cost_given_forward(
 
             if output_attentions:
                 all_self_attns += (layer_outputs[1],)
-
-            ### start changing attention mask if needed
-            if causal_mask is not None:
-                causal_mask = layer_outputs[-2]
-            ### end changing attention mask if needed
-
-            ### start changing position_embedding
-            position_embeddings = layer_outputs[-1]
-            ### end changing position embedding
 
         hidden_states = self.norm(hidden_states)
 
