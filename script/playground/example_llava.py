@@ -5,7 +5,7 @@ from llava.model.builder import load_pretrained_model
 from llava.mm_utils import tokenizer_image_token
 from llava.constants import IMAGE_TOKEN_INDEX, DEFAULT_IMAGE_TOKEN
 from llava.conversation import conv_templates
- 
+
 import copy
 import warnings
 from decord import VideoReader, cpu
@@ -30,35 +30,21 @@ def parse_args():
         default="lmms-lab/LLaVA-Video-7B-Qwen2",
         help="Pretrained model path",
     )
-    parser.add_argument(
-        "--model-name", type=str, default="llava_qwen", help="Model name"
-    )
+    parser.add_argument("--model-name", type=str, default="llava_qwen", help="Model name")
     parser.add_argument(
         "--conv-template",
         type=str,
         default="qwen_1_5",
         help="Chat template for the model",
     )
-    parser.add_argument(
-        "--device", type=str, default="cuda", help="Device to run the model on"
-    )
-    parser.add_argument(
-        "--device-map", type=str, default="auto", help="Device mapping strategy"
-    )
-    parser.add_argument(
-        "--torch-dtype", type=str, default="bfloat16", help="Torch data type"
-    )
+    parser.add_argument("--device", type=str, default="cuda", help="Device to run the model on")
+    parser.add_argument("--device-map", type=str, default="auto", help="Device mapping strategy")
+    parser.add_argument("--torch-dtype", type=str, default="bfloat16", help="Torch data type")
 
     # FrameFusion arguments
-    parser.add_argument(
-        "--framefusion-cost", type=float, default=0.3, help="FrameFusion cost"
-    )
-    parser.add_argument(
-        "--framefusion-similarity-lower-bound", type=float, default=0.6, help="FrameFusion similarity lower bound"
-    )
-    parser.add_argument(
-        "--framefusion-ratio-lower-bound", type=float, default=0.1, help="FrameFusion ratio lower bound"
-    )
+    parser.add_argument("--framefusion-cost", type=float, default=0.3, help="FrameFusion cost")
+    parser.add_argument("--framefusion-similarity-lower-bound", type=float, default=0.6, help="FrameFusion similarity lower bound")
+    parser.add_argument("--framefusion-ratio-lower-bound", type=float, default=0.1, help="FrameFusion ratio lower bound")
 
     # Data arguments
     parser.add_argument(
@@ -67,9 +53,7 @@ def parse_args():
         default="example/video/Tom_Jerry.mp4",
         help="Path to the input video",
     )
-    parser.add_argument(
-        "--max-frames", type=int, default=64, help="Maximum number of frames to process"
-    )
+    parser.add_argument("--max-frames", type=int, default=64, help="Maximum number of frames to process")
 
     # Output arguments
     parser.add_argument(
@@ -92,9 +76,7 @@ def load_video(video_path, max_frames_num, fps=1, force_sample=False):
     frame_time = [i / fps for i in frame_idx]
     if len(frame_idx) > max_frames_num or force_sample:
         sample_fps = max_frames_num
-        uniform_sampled_frames = np.linspace(
-            0, total_frame_num - 1, sample_fps, dtype=int
-        )
+        uniform_sampled_frames = np.linspace(0, total_frame_num - 1, sample_fps, dtype=int)
         frame_idx = uniform_sampled_frames.tolist()
         frame_time = [i / vr.get_avg_fps() for i in frame_idx]
     frame_time = ",".join([f"{i:.2f}s" for i in frame_time])
@@ -134,14 +116,8 @@ if __name__ == "__main__":
     # load video
     video_path = args.video_path
     max_frames_num = args.max_frames
-    video, frame_time, video_time = load_video(
-        video_path, max_frames_num, 1, force_sample=True
-    )
-    video = (
-        image_processor.preprocess(video, return_tensors="pt")["pixel_values"]
-        .to(args.device)
-        .to(dtype)
-    )
+    video, frame_time, video_time = load_video(video_path, max_frames_num, 1, force_sample=True)
+    video = image_processor.preprocess(video, return_tensors="pt")["pixel_values"].to(args.device).to(dtype)
     video = [video]
 
     # save the video frames to local folder
@@ -150,10 +126,7 @@ if __name__ == "__main__":
 
     # prompts
     time_instruciton = f"The video lasts for {video_time:.2f} seconds, and {len(video[0])} frames are uniformly sampled from it. These frames are located at {frame_time}. Please answer the following questions related to this video."
-    question = (
-        DEFAULT_IMAGE_TOKEN
-        + f"{time_instruciton}\n List all the characters that touch the bone."
-    )
+    question = DEFAULT_IMAGE_TOKEN + f"{time_instruciton}\n Which animal hit the cat? Answer it simply."
 
     # compression configs
     config_dict = {
@@ -179,12 +152,16 @@ if __name__ == "__main__":
         conv.append_message(conv.roles[0], question)
         conv.append_message(conv.roles[1], None)
         prompt_question = conv.get_prompt()
-        input_ids = (
-            tokenizer_image_token(
-                prompt_question, tokenizer, IMAGE_TOKEN_INDEX, return_tensors="pt"
-            )
-            .unsqueeze(0)
-            .to(args.device)
+        input_ids = tokenizer_image_token(prompt_question, tokenizer, IMAGE_TOKEN_INDEX, return_tensors="pt").unsqueeze(0).to(args.device)
+
+        # prefetch for accurate time measurement
+        response = model.generate(
+            input_ids,
+            images=video,
+            modalities=["video"],
+            do_sample=False,
+            temperature=0,
+            max_new_tokens=1024,
         )
 
         # generate the response
@@ -202,9 +179,7 @@ if __name__ == "__main__":
         time = start.elapsed_time(end)
 
         # decode the response
-        text_outputs = tokenizer.batch_decode(response, skip_special_tokens=True)[
-            0
-        ].strip()
+        text_outputs = tokenizer.batch_decode(response, skip_special_tokens=True)[0].strip()
         print("\n\n", text_outputs, "\n\n")
 
         # save the results
@@ -212,9 +187,7 @@ if __name__ == "__main__":
             {
                 "method": name,
                 "cost": config.get("cost", 1.0),
-                "similarity_lower_bound": str(
-                    config.get("similarity_lower_bound", "-")
-                ),
+                "similarity_lower_bound": str(config.get("similarity_lower_bound", "-")),
                 "ratio_lower_bound": str(config.get("ratio_lower_bound", "-")),
                 "text_outputs": text_outputs,
                 "time": time,
