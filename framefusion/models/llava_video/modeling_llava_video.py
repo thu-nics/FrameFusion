@@ -13,7 +13,8 @@ SPECIAL_TOKEN = -9
 IGNORE_TOKEN = -2
 TEXT_TOKEN = -1
 
-def prepare_inputs_labels_for_multimodal_get_token_type(self, input_ids, position_ids, attention_mask, past_key_values, labels, images, modalities=["image"], image_sizes=None):
+
+def prepare_inputs_labels_for_multimodal_get_patch_type(self, input_ids, position_ids, attention_mask, past_key_values, labels, images, modalities=["image"], image_sizes=None):
     vision_tower = self.get_vision_tower()
     # rank_print(modalities)
     if vision_tower is None or images is None or input_ids.shape[1] == 1:
@@ -206,7 +207,6 @@ def prepare_inputs_labels_for_multimodal_get_token_type(self, input_ids, positio
 
     new_input_embeds = []
     new_labels = []
-    new_token_type = []
     cur_image_idx = 0
     # rank_print("Inserting Images embedding")
     for batch_idx, cur_input_ids in enumerate(input_ids):
@@ -233,19 +233,10 @@ def prepare_inputs_labels_for_multimodal_get_token_type(self, input_ids, positio
         cur_input_embeds_no_im = torch.split(cur_input_embeds, split_sizes, dim=0)
         cur_new_input_embeds = []
         cur_new_labels = []
-        cur_frame_num = 0
-        if self.config.mm_spatial_pool_mode=="bilinear":
-            patch_size = math.ceil(self.get_vision_tower().num_patches_per_side / 2)
-        else:
-            patch_size = self.get_vision_tower().num_patches_per_side // 2
-
-        token_per_frame = patch_size * (patch_size + 1)
-        cur_new_token_type = []
 
         for i in range(num_images + 1):
             cur_new_input_embeds.append(cur_input_embeds_no_im[i])
             cur_new_labels.append(cur_labels_noim[i])
-            cur_new_token_type.append(torch.ones((cur_input_embeds_no_im[i].shape[-2],), dtype=torch.long) * TEXT_TOKEN)
             if i < num_images:
                 try:
                     cur_image_features = image_features[cur_image_idx]
@@ -255,23 +246,14 @@ def prepare_inputs_labels_for_multimodal_get_token_type(self, input_ids, positio
                 cur_new_input_embeds.append(cur_image_features)
                 cur_new_labels.append(torch.full((cur_image_features.shape[0],), IGNORE_INDEX, device=cur_labels.device, dtype=cur_labels.dtype))
 
-                cur_n_frames = cur_image_features.shape[-2] // (patch_size * (patch_size + 1))
-                cur_frame_token_type = torch.arange(cur_frame_num, cur_frame_num + cur_n_frames, dtype=torch.long).reshape(-1, 1).expand(-1, token_per_frame).reshape(-1)
-                cur_frame_token_type.view(-1, patch_size + 1)[:, -1] = SPECIAL_TOKEN
-                cur_new_token_type.append(cur_frame_token_type)
-                cur_frame_num += cur_n_frames
-
         cur_new_input_embeds = [x.to(self.device) for x in cur_new_input_embeds]
-        cur_new_token_type = [x.to(self.device) for x in cur_new_token_type]
 
         # import pdb; pdb.set_trace()
         cur_new_input_embeds = torch.cat(cur_new_input_embeds)
         cur_new_labels = torch.cat(cur_new_labels)
-        cur_new_token_type = torch.cat(cur_new_token_type)
 
         new_input_embeds.append(cur_new_input_embeds)
         new_labels.append(cur_new_labels)
-        new_token_type.append(cur_new_token_type)
 
     # Truncate sequences to max length as image embeddings can make the sequence longer
     tokenizer_model_max_length = getattr(self.config, "tokenizer_model_max_length", None)
@@ -279,7 +261,6 @@ def prepare_inputs_labels_for_multimodal_get_token_type(self, input_ids, positio
 
     new_input_embeds = [x[:tokenizer_model_max_length] for x, modality in zip(new_input_embeds, modalities)]
     new_labels = [x[:tokenizer_model_max_length] for x, modality in zip(new_labels, modalities)]
-    new_token_type = [x[:tokenizer_model_max_length] for x, modality in zip(new_token_type, modalities)]
     # TODO: Hard code for control loss spike
     # if tokenizer_model_max_length is not None:
     #     new_input_embeds = [x[:4096] if modality != "video" else x[:tokenizer_model_max_length] for x, modality in zip(new_input_embeds, modalities)]
@@ -291,25 +272,22 @@ def prepare_inputs_labels_for_multimodal_get_token_type(self, input_ids, positio
 
     new_input_embeds_padded = []
     new_labels_padded = torch.full((batch_size, max_len), IGNORE_INDEX, dtype=new_labels[0].dtype, device=new_labels[0].device)
-    new_token_type_padded = torch.full((batch_size, max_len), -10, dtype=new_token_type[0].dtype, device=new_token_type[0].device)
     attention_mask = torch.zeros((batch_size, max_len), dtype=attention_mask.dtype, device=attention_mask.device)
     position_ids = torch.zeros((batch_size, max_len), dtype=position_ids.dtype, device=position_ids.device)
     # rank0_print("Prepare pos id")
 
-    for i, (cur_new_embed, cur_new_labels, cur_new_token_type) in enumerate(zip(new_input_embeds, new_labels, new_token_type)):
+    for i, (cur_new_embed, cur_new_labels) in enumerate(zip(new_input_embeds, new_labels)):
         cur_len = cur_new_embed.shape[0]
         if getattr(self.config, "tokenizer_padding_side", "right") == "left":
             new_input_embeds_padded.append(torch.cat((torch.zeros((max_len - cur_len, cur_new_embed.shape[1]), dtype=cur_new_embed.dtype, device=cur_new_embed.device), cur_new_embed), dim=0))
             if cur_len > 0:
                 new_labels_padded[i, -cur_len:] = cur_new_labels
-                new_token_type_padded[i, -cur_len:] = cur_new_token_type
                 attention_mask[i, -cur_len:] = True
                 position_ids[i, -cur_len:] = torch.arange(0, cur_len, dtype=position_ids.dtype, device=position_ids.device)
         else:
             new_input_embeds_padded.append(torch.cat((cur_new_embed, torch.zeros((max_len - cur_len, cur_new_embed.shape[1]), dtype=cur_new_embed.dtype, device=cur_new_embed.device)), dim=0))
             if cur_len > 0:
                 new_labels_padded[i, :cur_len] = cur_new_labels
-                new_token_type_padded[i, :cur_len] = cur_new_token_type
                 attention_mask[i, :cur_len] = True
                 position_ids[i, :cur_len] = torch.arange(0, cur_len, dtype=position_ids.dtype, device=position_ids.device)
 
@@ -328,36 +306,6 @@ def prepare_inputs_labels_for_multimodal_get_token_type(self, input_ids, positio
 
     if _position_ids is None:
         position_ids = None
-
-    token_type = new_token_type_padded
-    patch_type = token_type.clone()
-    
-    total_img_patch_num = torch.max(patch_type, dim=-1).values
-    
-    n_save_frame = getattr(self, "n_save_frame", 0)
-    save_special_token = getattr(self, "save_special_token", False)
-    
-    if not save_special_token:
-        special_token_mask = (patch_type == SPECIAL_TOKEN)
-        patch_type[special_token_mask] = patch_type[torch.cat((special_token_mask[:, 1:], torch.zeros((batch_size, 1), dtype=special_token_mask.dtype, device=special_token_mask.device)), dim=-1)]
-
-    patch_type[patch_type > total_img_patch_num - n_save_frame] = IGNORE_TOKEN
-
-    patch_num = patch_size ** 2 if save_special_token else patch_size ** 2 + patch_size
-
-    valid_mask = (patch_type >= 0)
-    patch_indices = torch.arange(torch.sum(valid_mask, dim=-1)[0].item(), device=self.device).expand(batch_size, -1)
-    patch_type[valid_mask] = patch_indices % patch_num
-    
-    self.token_merge_scale = torch.full((batch_size, max_len), 1, dtype=torch.long, device=self.device)
-
-    image_token_start_index = torch.argmax((patch_type >=0).int(), dim=1)
-    image_token_end_index = patch_type.shape[1]-1-torch.argmax((torch.flip(patch_type, dims=[1]) >=0).int(), dim=1)
-    image_token_length = image_token_end_index - image_token_start_index + 1 
-    original_length = patch_type.shape[1]
-
-    self.framefusion.prepare(patch_type, patch_num, image_token_start_index, image_token_end_index, image_token_length, original_length)
-
     if getattr(self.config, "use_pos_skipping", False) and self.training:
         position_ids = torch.arange(new_input_embeds.size(1), device=new_input_embeds.device).unsqueeze(0).to(new_input_embeds.device)
         split_position = random.randint(0, new_input_embeds.size(1))
@@ -368,5 +316,24 @@ def prepare_inputs_labels_for_multimodal_get_token_type(self, input_ids, positio
     # import pdb; pdb.set_trace()
     # rank0_print("Finish preparing")
 
-    # self.current_embedding = new_input_embeds.clone()
+    ### FRAMEFUSION START ###
+    if self.config.mm_spatial_pool_mode == "bilinear":
+        patch_size = math.ceil(self.get_vision_tower().num_patches_per_side / 2)
+    else:
+        patch_size = self.get_vision_tower().num_patches_per_side // 2
+    patch_num = patch_size * (patch_size + 1)
+
+    assert batch_size == 1
+    assert num_images == 1
+    image_token_length = image_features[0].shape[0]
+    n_frames = image_token_length // patch_num
+    image_token_start_index = torch.where(input_ids[0] == IMAGE_TOKEN_INDEX)[0]
+    image_token_end_index = image_token_start_index + image_token_length - 1
+    original_length = input_ids[0].shape[0] + image_token_length - 1
+    patch_type = [TEXT_TOKEN] * image_token_start_index + list(range(patch_num)) * n_frames + [TEXT_TOKEN] * (original_length - image_token_end_index - 1)
+    patch_type = torch.tensor([patch_type], device=new_input_embeds.device)
+
+    self.framefusion.prepare(patch_type, patch_num, image_token_start_index, image_token_end_index, image_token_length, original_length)
+    ### FRAMEFUSION END ###
+
     return None, position_ids, attention_mask, past_key_values, new_input_embeds, new_labels

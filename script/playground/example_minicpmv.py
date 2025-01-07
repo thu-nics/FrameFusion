@@ -7,6 +7,7 @@ import pandas as pd
 
 from framefusion.interface import apply_framefusion
 
+
 def parse_args():
     parser = argparse.ArgumentParser(description="Video processing and analysis script")
 

@@ -11,16 +11,14 @@ from framefusion.main import FrameFusion
 from framefusion.utils import TEXT_TOKEN, IGNORE_TOKEN, get_attr_by_name
 
 # model types
-from transformers import  LlavaNextVideoForConditionalGeneration
+from transformers import LlavaNextVideoForConditionalGeneration
 from llava.model.language_model.llava_qwen import LlavaQwenForCausalLM
 
 # replace methods
 from framefusion.models.llava_next_video.modeling_llava_next_video import _merge_input_ids_with_image_features_get_token_type
-from framefusion.models.llava_video.modeling_llava_video import prepare_inputs_labels_for_multimodal_get_token_type
+from framefusion.models.llava_video.modeling_llava_video import prepare_inputs_labels_for_multimodal_get_patch_type
 from framefusion.models.minicpmv.modeling_minicpmv import get_vllm_embedding
 from framefusion.models.qwen2.modeling_qwen2 import Qwen2Model_merge_then_fastv_cost_given_forward, Qwen2DecoderLayer_merge_then_prune_by_cost_forward, Qwen2SdpaAttention_merge_then_prune_by_cost_forward
-
-
 
 
 def apply_framefusion(model, cost, similarity_lower_bound, ratio_lower_bound):
@@ -35,9 +33,7 @@ def apply_framefusion(model, cost, similarity_lower_bound, ratio_lower_bound):
     """
     # LlavaNextVideo Model
     if isinstance(model, LlavaNextVideoForConditionalGeneration):
-        model._merge_input_ids_with_image_features = MethodType(
-            _merge_input_ids_with_image_features_get_token_type, model
-        )
+        model._merge_input_ids_with_image_features = MethodType(_merge_input_ids_with_image_features_get_token_type, model)
 
         llm_forward = Qwen2Model_merge_then_fastv_cost_given_forward
         decoder_forward = Qwen2DecoderLayer_merge_then_prune_by_cost_forward
@@ -48,10 +44,8 @@ def apply_framefusion(model, cost, similarity_lower_bound, ratio_lower_bound):
 
     # LlavaVideo Model
     elif isinstance(model, LlavaQwenForCausalLM):
-        model.prepare_inputs_labels_for_multimodal = MethodType(
-            prepare_inputs_labels_for_multimodal_get_token_type, model
-        )
-        
+        model.prepare_inputs_labels_for_multimodal = MethodType(prepare_inputs_labels_for_multimodal_get_patch_type, model)
+
         llm_forward = Qwen2Model_merge_then_fastv_cost_given_forward
         decoder_forward = Qwen2DecoderLayer_merge_then_prune_by_cost_forward
         attention_forward = Qwen2SdpaAttention_merge_then_prune_by_cost_forward
@@ -61,7 +55,7 @@ def apply_framefusion(model, cost, similarity_lower_bound, ratio_lower_bound):
 
     # MiniCPM Model
     elif model.config.architectures[0] == "MiniCPMV":
-        
+
         model.get_vllm_embedding = MethodType(get_vllm_embedding, model)
         llm_forward = Qwen2Model_merge_then_fastv_cost_given_forward
         decoder_forward = Qwen2DecoderLayer_merge_then_prune_by_cost_forward
@@ -87,18 +81,14 @@ def apply_framefusion(model, cost, similarity_lower_bound, ratio_lower_bound):
     )
 
 
-def get_token_type(model): 
+def get_token_type(model):
     # LlavaNextVideo Model
     if isinstance(model, LlavaNextVideoForConditionalGeneration):
-        model._merge_input_ids_with_image_features = MethodType(
-            _merge_input_ids_with_image_features_get_token_type, model
-        )
+        model._merge_input_ids_with_image_features = MethodType(_merge_input_ids_with_image_features_get_token_type, model)
 
     # LlavaVideo Model
     elif isinstance(model, LlavaQwenForCausalLM):
-        model.prepare_inputs_labels_for_multimodal = MethodType(
-            prepare_inputs_labels_for_multimodal_get_token_type, model
-        )
+        model.prepare_inputs_labels_for_multimodal = MethodType(prepare_inputs_labels_for_multimodal_get_patch_type, model)
 
     # MiniCPM Model
     elif model.config.architectures[0] == "MiniCPMV":
@@ -122,7 +112,7 @@ def replace_framefusion_forward(
     """
     Replace the forward method of the model with the framefusion forward method.
     Make framefusion a property of the model.
-    
+
     The keys are accessed in an hierarchical manner: llm_key -> decoder_key -> attention_key. Each key can have multiple hierarchies, e.g. "llm.model", which will be accessed by module.llm.model
     """
     framefusion = FrameFusion(cost, similarity_lower_bound, ratio_lower_bound)
