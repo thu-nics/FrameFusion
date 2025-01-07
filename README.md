@@ -1,5 +1,7 @@
 # FrameFusion: Combining Similarity and Importance for Video Token Reduction on Large Visual Language Models
 
+**[[arXiv](https://arxiv.org/abs/2501.01986)]** 
+
 FrameFusion reduces the number of tokens in Large Vision-Language Models (LVLMs) by combining similarity-based merging with importance-based pruning. It achieves a 70% vision token reduction, 3.4–4.4× LLM speedups, and 1.6–1.9× end-to-end speedups with minimal performance impact.
 
 ## Environment Setup
