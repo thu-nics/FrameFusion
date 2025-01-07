@@ -27,9 +27,24 @@ class FrameFusion(nn.Module):
             self.sparsity_list = sparsity_list
 
     def forward(self, hidden_states, position_embeddings, attention_mask, self_attn_weights = None):
+        """
+        This is the forward method of the FrameFusion class.
+
+        Args:
+            hidden_states (torch.Tensor): A tensor of shape (batch_size, sequence_length, hidden_size).
+            position_embeddings (torch.Tensor): A tensor of shape (batch_size, sequence_length, hidden_size).
+            attention_mask (torch.Tensor): A tensor of shape (batch_size, sequence_length, sequence_length).
+            self_attn_weights (torch.Tensor): A tensor of shape (batch_size, sequence_length, sequence_length).
+
+        Returns:
+            hidden_states (torch.Tensor): A tensor of shape (batch_size, sequence_length, hidden_size).
+            position_embeddings (torch.Tensor): A tensor of shape (batch_size, sequence_length, hidden_size).
+            attention_mask (torch.Tensor): A tensor of shape (batch_size, sequence_length, sequence_length).
+        """
         bsz, q_len, hidden_size = hidden_states.size()
         device = hidden_states.device    
 
+        # pruning
         if q_len >1 and self.finish_merging == True and self.finish_pruning == False:
 
             image_token_pruning_start_index = self.image_token_start_index.item()
@@ -54,7 +69,11 @@ class FrameFusion(nn.Module):
                 attention_mask = attention_mask[:,:,keep_indexs,:][:,:,:,keep_indexs]
             self.finish_pruning = True
 
+        # merging
         if q_len >1 and (not self.finish_merging):
+            # align devices
+            self.patch_type = self.patch_type.to(device)
+
             # prefill
             sparsity_upper_bound = self._compute_pruning_ratio(self.sparsity_list, self.cost)
             similarity_by_patch, token_index_by_patch = self.compute_similarity_and_token_index_by_patch(hidden_states, self.patch_type, self.patch_num) # only support bsz = 1
@@ -82,10 +101,9 @@ class FrameFusion(nn.Module):
             # update patch type
             self.patch_type = self.patch_type.to(device)[token_mask].reshape(bsz, -1)
             hidden_states = hidden_states[token_mask, :].reshape(bsz, -1, hidden_size)
-            #token_mask = token_mask.to(position_embeddings[0].device)
             position_embeddings[0] = position_embeddings[0][:,token_mask[0],:]
             position_embeddings[1] = position_embeddings[1][:,token_mask[0],:]
-            if attention_mask != None:
+            if attention_mask is not None:
                 attention_mask = attention_mask[:,:,token_mask[0],:][:,:,:,token_mask[0]]
 
         return hidden_states, position_embeddings, attention_mask

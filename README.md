@@ -1,5 +1,7 @@
 # FrameFusion: Combining Similarity and Importance for Video Token Reduction on Large Visual Language Models
 
+**[[arXiv](https://arxiv.org/abs/2501.01986)]** 
+
 FrameFusion reduces the number of tokens in Large Vision-Language Models (LVLMs) by combining similarity-based merging with importance-based pruning. It achieves a 70% vision token reduction, 3.4–4.4× LLM speedups, and 1.6–1.9× end-to-end speedups with minimal performance impact.
 
 ## Environment Setup
@@ -57,8 +59,8 @@ apply_framefusion(model, cost=0.3, similarity_lower_bound=0.6, ratio_lower_bound
 #### Understand Code Structure
 
 - `framefusion/`: The main package for FrameFusion.
-    - `main.py`: The main implementation of FrameFusion.
     - `models/`: The adapter for different models.
+    - `main.py`: The main implementation of FrameFusion.
     - `interface.py`: The interface for applying FrameFusion.
 - `scripts/`: Scripts for running experiments.
     - `evaluate/`: Scripts for evaluating the performance models.
@@ -67,6 +69,14 @@ apply_framefusion(model, cost=0.3, similarity_lower_bound=0.6, ratio_lower_bound
 
 #### Modify the code
 
-1. Add a new model adapter in `framefusion/models/`, it applies framefusion after the attention module.
+1. Add a new model adapter in `framefusion/models/`, it applies framefusion after the attention module. 
+
+    > Three model functions are required: `llm_forward`, `decoder_forward`, and `attention_forward`. The forward functions are easily modified from the corresponding `modeling_<MODEL>.py` functions in huggingface transformers. All modifications are marked with `###` comments. For LLM, see `framefusion/models/qwen2/modeling_qwen2.py` as an example.
+
 2. Register the model in `framefusion/interface.py`, it applies framefusion to the correct model class.
+
 3. Add a new example in `script/playground/`, it shows how to apply framefusion to the model.
+
+#### Happy to help
+
+If you have any questions on applying FrameFusion to a new model, please feel free to open an issue. We are happy to help you and expand the adapter for more models.
