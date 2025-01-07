@@ -44,6 +44,7 @@ class FrameFusion(nn.Module):
         bsz, q_len, hidden_size = hidden_states.size()
         device = hidden_states.device    
 
+        # pruning
         if q_len >1 and self.finish_merging == True and self.finish_pruning == False:
 
             image_token_pruning_start_index = self.image_token_start_index.item()
@@ -68,7 +69,11 @@ class FrameFusion(nn.Module):
                 attention_mask = attention_mask[:,:,keep_indexs,:][:,:,:,keep_indexs]
             self.finish_pruning = True
 
+        # merging
         if q_len >1 and (not self.finish_merging):
+            # align devices
+            self.patch_type = self.patch_type.to(device)
+
             # prefill
             sparsity_upper_bound = self._compute_pruning_ratio(self.sparsity_list, self.cost)
             similarity_by_patch, token_index_by_patch = self.compute_similarity_and_token_index_by_patch(hidden_states, self.patch_type, self.patch_num) # only support bsz = 1

@@ -1,6 +1,10 @@
+import numpy as np
 import torch
 import math
 from typing import Any
+import os
+import torchvision.transforms as T
+import matplotlib.pyplot as plt
 
 # meta
 TEXT_TOKEN = -1
@@ -51,3 +55,47 @@ def scaled_dot_product_attention(query, key, value, num=1, attn_mask=None, dropo
         attn_weight = torch.dropout(attn_weight, dropout_p, train=True)
 
         return attn_weight
+
+def save_video_frames(video, output_path: str = "local/video_frames"):
+    if not os.path.exists(output_path):
+        os.makedirs(output_path)
+    to_pil = T.ToPILImage()
+    for i, frame in enumerate(video[0]):
+        frame_float = frame.to(torch.float32)
+        frame_float = (frame_float + 1) / 2
+        frame_float = torch.clamp(frame_float, 0, 1)
+        frame_pil = to_pil(frame_float)
+        frame_pil.save(os.path.join(output_path, f"frame_{i}.png"))
+
+def save_video_frames_subfigures(video, output_path: str = "local/video_frames.jpg"):
+    """
+    Save the video frames as subfigures in a single image.
+    """
+    if not os.path.exists(os.path.dirname(output_path)):
+        os.makedirs(os.path.dirname(output_path))
+        
+    num_frames = len(video[0])
+    rows = int(np.sqrt(num_frames))
+    cols = int(np.ceil(num_frames / rows))
+    
+    fig, axes = plt.subplots(rows, cols, figsize=(4*cols, 4*rows))
+    axes = axes.flatten()
+    
+    to_pil = T.ToPILImage()
+    for i, frame in enumerate(video[0]):
+        frame_float = frame.to(torch.float32)
+        frame_float = (frame_float + 1) / 2
+        frame_float = torch.clamp(frame_float, 0, 1)
+        frame_pil = to_pil(frame_float)
+        
+        axes[i].imshow(frame_pil)
+        axes[i].axis('off')
+        axes[i].set_title(f'Frame {i}')
+    
+    # Hide empty subplots
+    for i in range(num_frames, len(axes)):
+        axes[i].axis('off')
+        
+    plt.tight_layout()
+    plt.savefig(output_path)
+    plt.close()

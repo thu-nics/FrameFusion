@@ -16,6 +16,7 @@ import torchvision.transforms as T
 import os
 
 from framefusion.interface import apply_framefusion
+from framefusion.utils import save_video_frames
 
 warnings.filterwarnings("ignore")
 
@@ -83,19 +84,6 @@ def load_video(video_path, max_frames_num, fps=1, force_sample=False):
     spare_frames = vr.get_batch(frame_idx).asnumpy()
 
     return spare_frames, frame_time, video_time
-
-
-def save_video_frames(video, output_path: str = "local/video_frames"):
-    if not os.path.exists(output_path):
-        os.makedirs(output_path)
-    to_pil = T.ToPILImage()
-    for i, frame in enumerate(video[0]):
-        frame_float = frame.to(torch.float32)
-        frame_float = (frame_float + 1) / 2
-        frame_float = torch.clamp(frame_float, 0, 1)
-        frame_pil = to_pil(frame_float)
-        frame_pil.save(os.path.join(output_path, f"frame_{i}.png"))
-
 
 if __name__ == "__main__":
     # get args
