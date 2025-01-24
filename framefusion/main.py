@@ -48,9 +48,9 @@ class FrameFusion(nn.Module):
         if q_len >1 and self.finish_merging == True and self.finish_pruning == False:
 
             image_token_pruning_start_index = self.image_token_start_index.item()
-            image_token_pruning_length = self.image_token_length.item() 
+            image_token_pruning_length = self.image_token_length
             # update image_token_pruning_length
-            image_token_pruning_length = (self.image_token_length - (self.original_length - q_len)).item()
+            image_token_pruning_length = (self.image_token_length - (self.original_length - q_len))
 
             last_layer_attention = self_attn_weights
             last_layer_attention_avg = torch.mean(last_layer_attention, dim=(1,2))[0]
