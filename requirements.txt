@@ -10,3 +10,6 @@ einops
 decord
 av
 sentencepiece
+
+# Profile
+matplotlib

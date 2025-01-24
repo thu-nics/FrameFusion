@@ -5,9 +5,9 @@ from torch import nn
 TEXT_TOKEN = -1
 IGNORE_TOKEN = -2
 
-class FrameFusion(nn.Module):
+class FrameFusionAdjacent(nn.Module):
     def __init__(self, cost=0.3, similarity_lower_bound=0.6, ratio_lower_bound=0.1):
-        super(FrameFusion, self).__init__()
+        super(FrameFusionAdjacent, self).__init__()
         self.cost = cost
         self.similarity_lower_bound = similarity_lower_bound
         self.ratio_lower_bound = ratio_lower_bound
@@ -48,9 +48,9 @@ class FrameFusion(nn.Module):
         if q_len >1 and self.finish_merging == True and self.finish_pruning == False:
 
             image_token_pruning_start_index = self.image_token_start_index.item()
-            image_token_pruning_length = self.image_token_length
+            image_token_pruning_length = self.image_token_length.item() 
             # update image_token_pruning_length
-            image_token_pruning_length = (self.image_token_length - (self.original_length - q_len))
+            image_token_pruning_length = (self.image_token_length - (self.original_length - q_len)).item()
 
             last_layer_attention = self_attn_weights
             last_layer_attention_avg = torch.mean(last_layer_attention, dim=(1,2))[0]
