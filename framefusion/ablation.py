@@ -1,6 +1,7 @@
 from typing import List
 import torch
 from torch import nn
+from framefusion.main import cosine_similarity, find_contigious_latter_index
 
 TEXT_TOKEN = -1
 IGNORE_TOKEN = -2
@@ -28,7 +29,7 @@ class FrameFusionAdjacent(nn.Module):
 
     def forward(self, hidden_states, position_embeddings, attention_mask, self_attn_weights = None):
         """
-        This is the forward method of the FrameFusion class.
+        This is the forward method of the FrameFusion_Adjacent class.
 
         Args:
             hidden_states (torch.Tensor): A tensor of shape (batch_size, sequence_length, hidden_size).
@@ -46,11 +47,10 @@ class FrameFusionAdjacent(nn.Module):
 
         # pruning
         if q_len >1 and self.finish_merging == True and self.finish_pruning == False:
-
             image_token_pruning_start_index = self.image_token_start_index.item()
-            image_token_pruning_length = self.image_token_length.item() 
+            image_token_pruning_length = self.image_token_length
             # update image_token_pruning_length
-            image_token_pruning_length = (self.image_token_length - (self.original_length - q_len)).item()
+            image_token_pruning_length = (self.image_token_length - (self.original_length - q_len))
 
             last_layer_attention = self_attn_weights
             last_layer_attention_avg = torch.mean(last_layer_attention, dim=(1,2))[0]
@@ -76,7 +76,7 @@ class FrameFusionAdjacent(nn.Module):
 
             # prefill
             sparsity_upper_bound = self._compute_pruning_ratio(self.sparsity_list, self.cost)
-            similarity_by_patch, token_index_by_patch = self.compute_similarity_and_token_index_by_patch(hidden_states, self.patch_type, self.patch_num) # only support bsz = 1
+            similarity_by_patch, token_index_by_patch = self.compute_similarity_and_token_index_by_patch(hidden_states, self.patch_type) # only support bsz = 1
             
             frame_token_num = torch.sum(self.patch_type != TEXT_TOKEN).item()
             merge_index_by_patch = torch.where(similarity_by_patch >= self.similarity_lower_bound)[1]
@@ -95,7 +95,6 @@ class FrameFusionAdjacent(nn.Module):
                 self.finish_merging = True
                 self.finish_pruning = True
                 
-                
             hidden_states, token_mask = self.merge_tokens_and_get_mask(hidden_states, similarity_by_patch, token_index_by_patch, merge_index_by_patch)
             # here only bsz=1
             # update patch type
@@ -109,43 +108,32 @@ class FrameFusionAdjacent(nn.Module):
         return hidden_states, position_embeddings, attention_mask
 
     @staticmethod
-    def compute_similarity_and_token_index_by_patch(hidden_states, token_patch_type, patch_num):
+    def compute_similarity_and_token_index_by_patch(hidden_states, token_patch_type):
         """
-        Compute the similarity between consecutive tokens of the same patch type and record the token index.
+        Compute the similarity between consecutive non-text tokens, regardless of their patch type.
 
         Args:
             hidden_states (torch.Tensor): 
                 A tensor of shape (batch_size, sequence_length, hidden_size).
             token_patch_type (torch.Tensor): 
                 A tensor indicating the patch type of each token in the sequence. Text tokens are set to TEXT_TOKEN.
-            patch_num (int): 
-                The total number of patches of one image in the model.
 
         Returns:
             similarity_by_patch (torch.Tensor): 
-                A tensor of shape (batch_size, vision_sequence_length) containing the cosine similarity between consecutive tokens of the same patch type. Tokens that are the first of its patch type are set to IGNORE_TOKEN.
+                A tensor of shape (batch_size, non_text_sequence_length) containing the cosine similarity between consecutive non-text tokens.
             token_index_by_patch (torch.Tensor): 
-                A tensor of shape (batch_size, vision_sequence_length) containing the original token index corresponding to the new order after sorting by patch type. For example, the token similarity of token token_index_by_patch[i] is similarity_by_patch[i]
-
+                A tensor of shape (batch_size, non_text_sequence_length) containing the original token indices of non-text tokens.
         """
-
         bsz, q_len, _ = hidden_states.size()
         device = hidden_states.device
 
         assert bsz == 1, "Only support batch size 1"
 
-        token_index_by_patch = []
-        similarity_by_patch = []
+        # Get indices of non-text tokens
+        non_text_indices = torch.where(token_patch_type != TEXT_TOKEN)[1]
+        token_index_by_patch = non_text_indices[None, :]  # Add batch dimension
 
-
-        token_patch_type_by_patch, token_index_by_patch = torch.where(
-            token_patch_type == torch.arange(patch_num, device=device)[:, None]
-        )
-
-        # noqa: reshape to batch size = 1, with shape (batch_size, q_len),
-        token_patch_type_by_patch = token_patch_type_by_patch[None, :]
-        token_index_by_patch = token_index_by_patch[None, :]
-
+        # Compute similarity between consecutive non-text tokens
         similarity_by_patch = cosine_similarity(
             hidden_states[
                 torch.arange(bsz, device=device), token_index_by_patch[:, :-1], :
@@ -155,8 +143,7 @@ class FrameFusionAdjacent(nn.Module):
             ],
         )
 
-        similarity_by_patch[token_patch_type_by_patch[:, :-1] != token_patch_type_by_patch[:, 1:]] = -2
-
+        # Add IGNORE_TOKEN at the start to match dimensions
         similarity_by_patch = torch.cat(
             (
                 torch.full(
@@ -173,7 +160,6 @@ class FrameFusionAdjacent(nn.Module):
         assert similarity_by_patch.shape[1] == token_index_by_patch.shape[1]
         return similarity_by_patch, token_index_by_patch
 
-
     @staticmethod
     def merge_tokens_and_get_mask(hidden_states: torch.Tensor, similarity_by_patch, token_index_by_patch, merge_index_by_patch):
         """
@@ -183,11 +169,11 @@ class FrameFusionAdjacent(nn.Module):
             hidden_states (torch.Tensor): 
                 A tensor of shape (batch_size, sequence_length, hidden_size)
             similarity_by_patch (torch.Tensor): 
-                A tensor of shape (batch_size, sequence_length) containing the cosine similarity between consecutive vision tokens of the same patch type.
+                A tensor of shape (batch_size, sequence_length) containing the cosine similarity between consecutive non-text tokens.
             token_index_by_patch (torch.Tensor): 
-                A tensor of shape (batch_size, sequence_length) containing the original token index corresponding to the new order after sorting by patch type. For example, the token similarity of token token_index_by_patch[i] is similarity_by_patch[i].
+                A tensor of shape (batch_size, sequence_length) containing the original token indices of non-text tokens.
             merge_index_by_patch (torch.Tensor): 
-                A tensor containing the indices of tokens to be merged, in the patch_type order.
+                A tensor containing the indices of tokens to be merged.
 
         Returns:
             hidden_states (torch.Tensor): A tensor containing the hidden states of the tokens after merging.
@@ -197,6 +183,7 @@ class FrameFusionAdjacent(nn.Module):
         if merge_index_by_patch.shape[0] == 0:
             keep_mask = torch.ones(hidden_states.shape[:-1], dtype=torch.bool, device=device)
             return hidden_states, keep_mask
+        
         bsz, q_len, _ = hidden_states.size()
         bsz_index = torch.arange(bsz, device=hidden_states.device)[:, None]
         merge_mask_by_patch: torch.LongTensor = torch.zeros(
@@ -248,7 +235,6 @@ class FrameFusionAdjacent(nn.Module):
             bsz_index,
             token_index_by_patch[bsz_index, token_merge_start_index_in_patch],
         ] /= (merge_nums[None, :, None] + 1)
-        
 
         return hidden_states, keep_mask
 
@@ -274,41 +260,4 @@ class FrameFusionAdjacent(nn.Module):
             raise ValueError("The cost is too small")
         if remain_calcution/((num_layers-list_length)*s) > 1:
             return 0
-        return 1 - (remain_calcution/((num_layers-list_length)*s))    
-    
-def cosine_similarity(mat1, mat2):
-    dot_product = torch.sum(mat1*mat2, dim=-1)
-    norm_vec1 = torch.norm(mat1, dim=-1)
-    norm_vec2 = torch.norm(mat2, dim=-1)
-    return dot_product / (norm_vec1 * norm_vec2)
-
-def find_contigious_latter_index(index_tensor: torch.LongTensor) -> torch.Tensor:
-    """
-    Args:
-        index_tensor (torch.LongTensor): A binary tensor containing sequences of ones and zeros.
-
-    Returns:
-        torch.Tensor: A tensor where each contiguous sequence of ones in the input tensor
-                    is replaced by zeros, except for the last element of each sequence,
-                    which is replaced by the length of that sequence.
-
-    Example:
-        Input:  torch.tensor([0, 1, 1, 1, 0, 0, 1, 1])
-        Output: torch.tensor([0, 0, 0, 3, 0, 0, 0, 2])
-    """
-    bsz, n = index_tensor.shape
-    t_prev = torch.cat([torch.zeros((bsz, 1), dtype=index_tensor.dtype, device=index_tensor.device), index_tensor[:, :-1]], dim=1)
-    t_next = torch.cat([index_tensor[:, 1:], torch.zeros((bsz, 1), dtype=index_tensor.dtype, device=index_tensor.device)], dim=1)
-
-    # Identify the starts and ends of runs of ones
-    run_starts = (index_tensor == 1) & (t_prev == 0)
-    run_ends = (index_tensor == 1) & (t_next == 0)
-
-    start_indices = torch.nonzero(run_starts, as_tuple=True)
-    end_indices = torch.nonzero(run_ends, as_tuple=True)
-    run_lengths = (end_indices[1] - start_indices[1] + 1).to(index_tensor.dtype)
-
-    output = torch.zeros_like(index_tensor, dtype=index_tensor.dtype)
-    output[end_indices[0], end_indices[1]] = run_lengths
-
-    return output
+        return 1 - (remain_calcution/((num_layers-list_length)*s))

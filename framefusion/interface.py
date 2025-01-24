@@ -8,6 +8,7 @@ from transformers import PreTrainedModel
 
 # framefusion methods
 from framefusion.main import FrameFusion
+from framefusion.ablation import FrameFusionAdjacent
 from framefusion.utils import TEXT_TOKEN, IGNORE_TOKEN, get_attr_by_name
 
 # model types
@@ -115,7 +116,9 @@ def replace_framefusion_forward(
 
     The keys are accessed in an hierarchical manner: llm_key -> decoder_key -> attention_key. Each key can have multiple hierarchies, e.g. "llm.model", which will be accessed by module.llm.model
     """
-    framefusion = FrameFusion(cost, similarity_lower_bound, ratio_lower_bound)
+    # framefusion = FrameFusion(cost, similarity_lower_bound, ratio_lower_bound)
+    print("FrameFusionAdjacent")
+    framefusion = FrameFusionAdjacent(cost, similarity_lower_bound, ratio_lower_bound)
 
     module.framefusion = framefusion
 
