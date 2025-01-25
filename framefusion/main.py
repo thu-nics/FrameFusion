@@ -1,9 +1,25 @@
+from functools import partial
 from typing import List
 import torch
 from torch import nn
 
 TEXT_TOKEN = -1
 IGNORE_TOKEN = -2
+
+    
+def cosine_similarity(mat1, mat2):
+    dot_product = torch.sum(mat1*mat2, dim=-1)
+    norm_vec1 = torch.norm(mat1, dim=-1)
+    norm_vec2 = torch.norm(mat2, dim=-1)
+    return dot_product / (norm_vec1 * norm_vec2)
+
+def minkowski_distance_similarity(mat1, mat2, p=2):
+    distance = torch.linalg.vector_norm(mat1 - mat2, ord=p, dim=-1)
+    distance = (distance - torch.min(distance, dim=-1).values) / (torch.max(distance, dim=-1).values - torch.min(distance, dim=-1).values)
+    return 1 - distance
+
+# similarity_func = cosine_similarity
+similarity_func = partial(minkowski_distance_similarity, p=2)
 
 class FrameFusion(nn.Module):
     def __init__(self, cost=0.3, similarity_lower_bound=0.6, ratio_lower_bound=0.1):
@@ -12,7 +28,7 @@ class FrameFusion(nn.Module):
         self.similarity_lower_bound = similarity_lower_bound
         self.ratio_lower_bound = ratio_lower_bound
 
-    def prepare(self, patch_type, patch_num, image_token_start_index, image_token_end_index, image_token_length, original_length, finish_merging = False, finish_pruning = False, sparsity_list: List = None):
+    def prepare(self, patch_type, patch_num, image_token_start_index, image_token_end_index, image_token_length, original_length, finish_merging = False, finish_pruning = False):
         self.patch_type = patch_type
         self.patch_num = patch_num
         self.image_token_start_index = image_token_start_index
@@ -21,10 +37,9 @@ class FrameFusion(nn.Module):
         self.original_length = original_length
         self.finish_merging = finish_merging
         self.finish_pruning = finish_pruning
-        if sparsity_list is None:
-            self.sparsity_list = []
-        else:
-            self.sparsity_list = sparsity_list
+
+        # init sparsity list
+        self.sparsity_list = []
 
     def forward(self, hidden_states, position_embeddings, attention_mask, self_attn_weights = None):
         """
@@ -146,7 +161,7 @@ class FrameFusion(nn.Module):
         token_patch_type_by_patch = token_patch_type_by_patch[None, :]
         token_index_by_patch = token_index_by_patch[None, :]
 
-        similarity_by_patch = cosine_similarity(
+        similarity_by_patch = similarity_func(
             hidden_states[
                 torch.arange(bsz, device=device), token_index_by_patch[:, :-1], :
             ],
@@ -275,12 +290,6 @@ class FrameFusion(nn.Module):
         if remain_calcution/((num_layers-list_length)*s) > 1:
             return 0
         return 1 - (remain_calcution/((num_layers-list_length)*s))    
-    
-def cosine_similarity(mat1, mat2):
-    dot_product = torch.sum(mat1*mat2, dim=-1)
-    norm_vec1 = torch.norm(mat1, dim=-1)
-    norm_vec2 = torch.norm(mat2, dim=-1)
-    return dot_product / (norm_vec1 * norm_vec2)
 
 def find_contigious_latter_index(index_tensor: torch.LongTensor) -> torch.Tensor:
     """

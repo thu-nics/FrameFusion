@@ -153,3 +153,104 @@ class FrameFusionRandom(FrameFusion):
 
         assert similarity_by_patch.shape[1] == token_index_by_patch.shape[1]
         return similarity_by_patch, token_index_by_patch
+
+class FrameFusionRank(FrameFusion):
+    def __init__(self, merging_ratio_list=None):
+        """
+        Initialize FrameFusionRank with a list of merging ratios for each layer.
+
+        Args:
+            merging_ratio_list (List[float]): List of merging ratios for each layer.
+        """        
+        super(FrameFusionRank, self).__init__(cost=0.0, similarity_lower_bound=0.0, ratio_lower_bound=0.0)
+        # Initialize merging ratio list
+        if merging_ratio_list is None:
+            merging_ratio_list = [0.0]
+        self.merging_ratio_list = list(merging_ratio_list)
+        self.current_layer = 0
+
+    def prepare(self, patch_type, patch_num, image_token_start_index, image_token_end_index, image_token_length, original_length, finish_merging=False, finish_pruning=False):
+        """
+        Prepare the module for the next layer.
+        """
+        super().prepare(patch_type, patch_num, image_token_start_index, image_token_end_index, image_token_length, original_length, finish_merging, finish_pruning)
+        self.current_layer = 0
+
+    def forward(self, hidden_states, position_embeddings, attention_mask, self_attn_weights = None):
+        """
+        Forward pass that uses layer-specific pruning ratios.
+
+        Args:
+            hidden_states (torch.Tensor): A tensor of shape (batch_size, sequence_length, hidden_size).
+            position_embeddings (torch.Tensor): A tensor of shape (batch_size, sequence_length, hidden_size).
+            attention_mask (torch.Tensor): A tensor of shape (batch_size, sequence_length, sequence_length).
+            self_attn_weights (torch.Tensor): A tensor of shape (batch_size, sequence_length, sequence_length).
+
+        Returns:
+            hidden_states (torch.Tensor): A tensor of shape (batch_size, sequence_length, hidden_size).
+            position_embeddings (torch.Tensor): A tensor of shape (batch_size, sequence_length, hidden_size).
+            attention_mask (torch.Tensor): A tensor of shape (batch_size, sequence_length, sequence_length).
+        """
+        bsz, q_len, hidden_size = hidden_states.size()
+        device = hidden_states.device    
+
+        # pruning
+        if q_len >1 and self.finish_merging == True and self.finish_pruning == False:
+
+            image_token_pruning_start_index = self.image_token_start_index.item()
+            image_token_pruning_length = self.image_token_length
+            # update image_token_pruning_length
+            image_token_pruning_length = (self.image_token_length - (self.original_length - q_len))
+
+            last_layer_attention = self_attn_weights
+            last_layer_attention_avg = torch.mean(last_layer_attention, dim=(1,2))[0]
+            last_layer_attention_avg_image = last_layer_attention_avg[image_token_pruning_start_index:image_token_pruning_start_index+image_token_pruning_length]
+            
+            pruning_ratio = self._compute_pruning_ratio(self.sparsity_list, self.cost)
+            top_attention_rank_index = last_layer_attention_avg_image.topk(round(image_token_pruning_length*(1-pruning_ratio))).indices + image_token_pruning_start_index
+            
+            keep_indexs = torch.cat( (torch.arange(image_token_pruning_start_index,device=device), top_attention_rank_index, torch.arange(image_token_pruning_start_index+image_token_pruning_length, q_len, device=device)))
+            keep_indexs = keep_indexs.sort().values
+            
+            hidden_states = hidden_states[:,keep_indexs,:] 
+            position_embeddings[0] = position_embeddings[0][:,keep_indexs,:]
+            position_embeddings[1] = position_embeddings[1][:,keep_indexs,:]
+            if attention_mask != None:
+                attention_mask = attention_mask[:,:,keep_indexs,:][:,:,:,keep_indexs]
+            self.finish_pruning = True
+
+        # merging
+        if q_len > 1 and (not self.finish_merging):
+            # align devices
+            self.patch_type = self.patch_type.to(device)
+
+            # Get similarities and indices
+            similarity_by_patch, token_index_by_patch = self.compute_similarity_and_token_index_by_patch(hidden_states, self.patch_type, self.patch_num)
+            
+            frame_token_num = torch.sum(self.patch_type != TEXT_TOKEN).item()
+            
+            # Sort similarities and take top k based on current layer's merging ratio
+            current_merging_ratio = self.merging_ratio_list[self.current_layer]
+            k = int(current_merging_ratio * frame_token_num)
+            if k > 0:
+                topk_values, topk_indices = torch.topk(similarity_by_patch, k)
+                topk_indices, _ = torch.sort(topk_indices)
+                merge_index_by_patch = topk_indices[0]
+                
+                hidden_states, token_mask = self.merge_tokens_and_get_mask(hidden_states, similarity_by_patch, token_index_by_patch, merge_index_by_patch)
+                # here only bsz=1
+                # update patch type
+                self.patch_type = self.patch_type.to(device)[token_mask].reshape(bsz, -1)
+                hidden_states = hidden_states[token_mask, :].reshape(bsz, -1, hidden_size)
+                position_embeddings[0] = position_embeddings[0][:,token_mask[0],:]
+                position_embeddings[1] = position_embeddings[1][:,token_mask[0],:]
+                if attention_mask is not None:
+                    attention_mask = attention_mask[:,:,token_mask[0],:][:,:,:,token_mask[0]]
+            
+            self.current_layer += 1
+
+            if self.current_layer >= len(self.merging_ratio_list):
+                self.finish_merging = True
+                self.finish_pruning = True # noqa: do not prune after merging
+
+        return hidden_states, position_embeddings, attention_mask
