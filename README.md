@@ -1,8 +1,22 @@
 # FrameFusion: Combining Similarity and Importance for Video Token Reduction on Large Visual Language Models
 
-**[[arXiv](https://arxiv.org/abs/2501.01986)]** **[[Project Page](https://thu-nics.github.io/FrameFusion_Project_Page/)]**
+**[[arXiv](https://arxiv.org/abs/2501.01986)]** **[[project page](https://thu-nics.github.io/FrameFusion_Project_Page/)]**
 
 FrameFusion reduces the number of tokens in Large Vision-Language Models (LVLMs) by combining similarity-based merging with importance-based pruning. It achieves a 70% vision token reduction, 3.4–4.4× LLM speedups, and 1.6–1.9× end-to-end speedups with minimal performance impact.
+
+Feel free to star the repo or cite the paper if you find it interesting.
+
+```bibtex
+@misc{fu2024framefusion,
+      title={FrameFusion: Combining Similarity and Importance for Video Token Reduction on Large Visual Language Models}, 
+      author={Tianyu Fu and Tengxuan Liu and Qinghao Han and Guohao Dai and Shengen Yan and Huazhong Yang and Xuefei Ning and Yu Wang},
+      year={2024},
+      eprint={2501.01986},
+      archivePrefix={arXiv},
+      primaryClass={cs.CV},
+      url={https://arxiv.org/abs/2501.01986}, 
+}
+```
 
 ## Environment Setup
 
