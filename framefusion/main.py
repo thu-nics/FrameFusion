@@ -13,13 +13,17 @@ def cosine_similarity(mat1, mat2):
     norm_vec2 = torch.norm(mat2, dim=-1)
     return dot_product / (norm_vec1 * norm_vec2)
 
+def inner_product_similarity(mat1, mat2):
+    return torch.sum(mat1*mat2, dim=-1)
+
 def minkowski_distance_similarity(mat1, mat2, p=2):
     distance = torch.linalg.vector_norm(mat1 - mat2, ord=p, dim=-1)
     distance = (distance - torch.min(distance, dim=-1).values) / (torch.max(distance, dim=-1).values - torch.min(distance, dim=-1).values)
     return 1 - distance
 
 # similarity_func = cosine_similarity
-similarity_func = partial(minkowski_distance_similarity, p=2)
+similarity_func = inner_product_similarity
+# similarity_func = partial(minkowski_distance_similarity, p=1)
 
 class FrameFusion(nn.Module):
     def __init__(self, cost=0.3, similarity_lower_bound=0.6, ratio_lower_bound=0.1):
