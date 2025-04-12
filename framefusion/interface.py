@@ -12,11 +12,25 @@ from framefusion.utils import TEXT_TOKEN, IGNORE_TOKEN, get_attr_by_name
 
 # model types
 from transformers import LlavaNextVideoForConditionalGeneration
-from llava.model.language_model.llava_qwen import LlavaQwenForCausalLM
+from framefusion.models.nvila.llava_arch import _embed
+try:
+    from llava.model.language_model.llava_qwen import LlavaQwenForCausalLM
+    from framefusion.models.llava_video.modeling_llava_video import prepare_inputs_labels_for_multimodal_get_patch_type
+    SKIP_LLAVA_NEXT = False
+except ModuleNotFoundError:
+    SKIP_LLAVA_NEXT = True
+    print("Skipping import from LLAVA-NEXT")
+
+try:
+    from llava.model import LlavaLlamaModel
+    SKIP_NVILA = False
+except ModuleNotFoundError:
+    SKIP_NVILA = True
+    print("Skipping import from VILA")
 
 # replace methods
 from framefusion.models.llava_next_video.modeling_llava_next_video import _merge_input_ids_with_image_features_get_token_type
-from framefusion.models.llava_video.modeling_llava_video import prepare_inputs_labels_for_multimodal_get_patch_type
+
 from framefusion.models.minicpmv.modeling_minicpmv import get_vllm_embedding
 from framefusion.models.qwen2.modeling_qwen2 import Qwen2Model_merge_then_fastv_cost_given_forward, Qwen2DecoderLayer_merge_then_prune_by_cost_forward, Qwen2SdpaAttention_merge_then_prune_by_cost_forward
 
@@ -43,7 +57,7 @@ def apply_framefusion(model, cost, similarity_lower_bound, ratio_lower_bound):
         attention_key = "self_attn"
 
     # LlavaVideo Model
-    elif isinstance(model, LlavaQwenForCausalLM):
+    elif (not SKIP_LLAVA_NEXT) and isinstance(model, LlavaQwenForCausalLM):
         model.prepare_inputs_labels_for_multimodal = MethodType(prepare_inputs_labels_for_multimodal_get_patch_type, model)
 
         llm_forward = Qwen2Model_merge_then_fastv_cost_given_forward
@@ -57,6 +71,16 @@ def apply_framefusion(model, cost, similarity_lower_bound, ratio_lower_bound):
     elif model.config.architectures[0] == "MiniCPMV":
 
         model.get_vllm_embedding = MethodType(get_vllm_embedding, model)
+        llm_forward = Qwen2Model_merge_then_fastv_cost_given_forward
+        decoder_forward = Qwen2DecoderLayer_merge_then_prune_by_cost_forward
+        attention_forward = Qwen2SdpaAttention_merge_then_prune_by_cost_forward
+        llm_key = "llm.model"
+        decoder_key = "layers"
+        attention_key = "self_attn"
+
+    # NVILA Model
+    elif (not SKIP_NVILA) and isinstance(model, LlavaLlamaModel):
+        model._embed = MethodType(_embed, model)
         llm_forward = Qwen2Model_merge_then_fastv_cost_given_forward
         decoder_forward = Qwen2DecoderLayer_merge_then_prune_by_cost_forward
         attention_forward = Qwen2SdpaAttention_merge_then_prune_by_cost_forward
@@ -87,12 +111,16 @@ def get_token_type(model):
         model._merge_input_ids_with_image_features = MethodType(_merge_input_ids_with_image_features_get_token_type, model)
 
     # LlavaVideo Model
-    elif isinstance(model, LlavaQwenForCausalLM):
+    elif (not SKIP_LLAVA_NEXT) and isinstance(model, LlavaQwenForCausalLM):
         model.prepare_inputs_labels_for_multimodal = MethodType(prepare_inputs_labels_for_multimodal_get_patch_type, model)
 
     # MiniCPM Model
     elif model.config.architectures[0] == "MiniCPMV":
         model.get_vllm_embedding = MethodType(get_vllm_embedding, model)
+
+    # NVILA Model
+    elif (not SKIP_NVILA) and isinstance(model, LlavaLlamaModel):
+        model._embed = MethodType(_embed, model)
     else:
         raise NotImplementedError
 

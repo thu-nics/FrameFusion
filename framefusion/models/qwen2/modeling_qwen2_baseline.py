@@ -135,6 +135,34 @@ def replace_minicpmv_forward(model, mode="fastv", **kwargs):
     else:
         raise NotImplementedError(f"Mode {mode} is not implemented yet.")
 
+def replace_nvila_forward(model, mode="merge_then_fastv_cost_given", **kwargs):
+    model.mode = mode
+    print(f"replace_nvila_forward mode: {mode} and kwargs: {kwargs}")
+    if mode=="fastv":
+        fastv_kwargs = {
+            "fastv_k": kwargs.get("fastv_k", 3),
+            "fastv_r": kwargs.get("fastv_r", 0.5)
+        }
+        print(f"Config\n{fastv_kwargs}")
+
+        replace_nvila_fastv(
+            model,
+            **fastv_kwargs
+        )
+    elif mode=="streamingllm":
+        streamingllm_kwargs = {
+            "init_num": kwargs.get("init_num", 8),
+            "length_rate": kwargs.get("length_rate", 0.3),
+        }
+        print(f"Config\n{streamingllm_kwargs}")
+
+        replace_nvila_streamingllm(
+            model,
+            **streamingllm_kwargs
+        )
+    else:
+        raise NotImplementedError(f"Mode {mode} is not implemented yet.")
+
 
 """
 Forward functions
@@ -160,6 +188,21 @@ def replace_Qwen2_fastv(model, fastv_k = 3, fastv_r = 0.5):
             raise TypeError("language model is not Qwen2.")
      
 def replace_minicpmv_fastv(model, fastv_k = 3, fastv_r = 0.5):
+    model.fastv_k = fastv_k
+    model.fastv_r = fastv_r 
+    
+    if isinstance(model.llm.model, Qwen2Model):
+        model.llm.model.forward = MethodType(partial(Qwen2Model_fastv_forward, model=model), model.llm.model)
+    for i, decoder_layer in enumerate(model.llm.model.layers):
+        if isinstance(decoder_layer, Qwen2DecoderLayer):
+            decoder_layer.forward=MethodType(Qwen2DecoderLayer_fastv_forward, decoder_layer)
+        qwen2_attention_instance = decoder_layer.self_attn
+        if isinstance(qwen2_attention_instance, Qwen2SdpaAttention):
+            qwen2_attention_instance.forward = MethodType(partial(Qwen2SdpaAttention_fastv_forward, model=model), qwen2_attention_instance)
+        else:
+            raise TypeError("language model is not Qwen2.")
+
+def replace_nvila_fastv(model, fastv_k = 3, fastv_r = 0.5):
     model.fastv_k = fastv_k
     model.fastv_r = fastv_r 
     
@@ -547,6 +590,19 @@ def replace_Qwen2_streamingllm(model, init_num = 4, length_rate = 0.3):
             raise TypeError("language model is not Qwen2.")
 
 def replace_minicpmv_streamingllm(model, init_num = 4, length_rate = 0.3):
+    model.init_num = init_num
+    model.length_rate = length_rate
+
+    if isinstance(model.llm.model, Qwen2Model):
+        model.llm.model.forward = MethodType(partial(Qwen2Model_streamingllm_forward, model=model), model.llm.model)
+    for i, decoder_layer in enumerate(model.llm.model.layers):
+        qwen2_attention_instance = decoder_layer.self_attn
+        if isinstance(qwen2_attention_instance, Qwen2SdpaAttention):
+            qwen2_attention_instance.forward = MethodType(partial(Qwen2SdpaAttention_streamingllm_forward, model=model), qwen2_attention_instance)
+        else:
+            raise TypeError("language model is not Qwen2.")
+        
+def replace_nvila_streamingllm(model, init_num = 4, length_rate = 0.3):
     model.init_num = init_num
     model.length_rate = length_rate
 

@@ -3,10 +3,12 @@ import re
 import torch
 import torch.nn as nn
 
+
 from llava.constants import IGNORE_INDEX, IMAGE_TOKEN_INDEX
 
 from llava.mm_utils import get_anyres_image_grid_shape
 from llava.utils import rank0_print
+
 import random
 
 SPECIAL_TOKEN = -9

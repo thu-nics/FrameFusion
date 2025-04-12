@@ -18,8 +18,13 @@ Feel free to star the repo or cite the paper if you find it interesting.
 }
 ```
 
+## News
+
+* [2025/04] Support NVILA model family
+
 ## Environment Setup
 
+### General
 Create a new environment:
 
 ```bash
@@ -39,7 +44,22 @@ Install FrameFusion:
 pip install -e .
 ```
 
+### Working with other models
+
+`NVILA` and `Llava-Video` have conflicting architecture definitions. FrameFusion is compatible with both, but please install only one of them to avoid conflict between the two repos.
+
+#### Llava-Video
+
 To use Llava-Video LVLM, you also need to install the dependencies for it. We recommend clone the [official repository](https://github.com/LLaVA-VL/LLaVA-NeXT), then install it with `pip install -e .` in the cloned repository.
+
+#### NVILA
+
+1. Clone the [VILA](https://github.com/NVlabs/VILA) repo.
+
+2. Run `./environment_setup.sh` to install NVILA dependencies in the current conda environment.
+
+3. Install VILA with `pip install -e .` in the cloned repository.
+
 
 ## How to
 
@@ -94,3 +114,24 @@ apply_framefusion(model, cost=0.3, similarity_lower_bound=0.6, ratio_lower_bound
 #### Happy to help
 
 If you have any questions on applying FrameFusion to a new model, please feel free to open an issue. We are happy to help you and expand the adapter for more models.
+
+## Supported Model List
+
+### MimiCPM-V
+
+* [openbmb/MiniCPM-V-2_6](https://huggingface.co/openbmb/MiniCPM-V-2_6)
+
+### Llava-Video
+
+* [lmms-lab/LLaVA-Video-7B-Qwen2](https://huggingface.co/lmms-lab/LLaVA-Video-7B-Qwen2)
+* [lmms-lab/LLaVA-Video-72B-Qwen2](https://huggingface.co/lmms-lab/LLaVA-Video-72B-Qwen2)
+
+
+
+### NVILA
+
+* [Efficient-Large-Model/NVILA-Lite-2B](https://huggingface.co/Efficient-Large-Model/NVILA-Lite-2B)
+* [Efficient-Large-Model/NVILA-8B-Video](https://huggingface.co/Efficient-Large-Model/NVILA-8B-Video)
+* [Efficient-Large-Model/NVILA-Lite-15B-Video](https://huggingface.co/Efficient-Large-Model/NVILA-Lite-15B-Video)
+
+
