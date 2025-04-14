@@ -44,21 +44,39 @@ Install FrameFusion:
 pip install -e .
 ```
 
-### Working with other models
+### Working with Other Models
 
-`NVILA` and `Llava-Video` have conflicting architecture definitions. FrameFusion is compatible with both, but please install only one of them to avoid conflict between the two repos.
+**Important:** `NVILA` and `Llava-Video` have conflicting architectures. **FrameFusion** supports both, but please install only one to avoid conflicts.
 
-#### Llava-Video
+#### Option 1: Llava-Video
+To install Llava-Video LVLM dependencies:
 
-To use Llava-Video LVLM, you also need to install the dependencies for it. We recommend clone the [official repository](https://github.com/LLaVA-VL/LLaVA-NeXT), then install it with `pip install -e .` in the cloned repository.
+1. Clone the [LLaVA-NeXT repository](https://github.com/LLaVA-VL/LLaVA-NeXT):
+   ```bash
+   git clone https://github.com/LLaVA-VL/LLaVA-NeXT.git
+   cd LLaVA-NeXT
+   ```
+2. Install via:
+   ```bash
+   pip install -e .
+   ```
 
-#### NVILA
+#### Option 2: NVILA
+To install NVILA dependencies:
 
-1. Clone the [VILA](https://github.com/NVlabs/VILA) repo.
-
-2. Run `./environment_setup.sh` to install NVILA dependencies in the current conda environment.
-
-3. Install VILA with `pip install -e .` in the cloned repository.
+1. Clone the [VILA repository](https://github.com/NVlabs/VILA):
+   ```bash
+   git clone https://github.com/NVlabs/VILA.git
+   cd VILA
+   ```
+2. Run environment setup script to install dependencies in current conda environment:
+   ```bash
+   ./environment_setup.sh
+   ```
+3. Install via:
+   ```bash
+   pip install -e .
+   ```
 
 
 ## How to
