@@ -12,7 +12,18 @@ class FrameFusion(nn.Module):
         self.similarity_lower_bound = similarity_lower_bound
         self.ratio_lower_bound = ratio_lower_bound
 
-    def prepare(self, patch_type, patch_num, image_token_start_index, image_token_end_index, image_token_length, original_length, finish_merging = False, finish_pruning = False, sparsity_list: List = None):
+    def prepare(
+        self,
+        patch_type: torch.Tensor,
+        patch_num: int,
+        image_token_start_index: torch.Tensor,
+        image_token_end_index: torch.Tensor,
+        image_token_length: torch.Tensor,
+        original_length: int,
+        finish_merging: bool = False,
+        finish_pruning: bool = False,
+        sparsity_list: List[float] = None,
+    ):
         self.patch_type = patch_type
         self.patch_num = patch_num
         self.image_token_start_index = image_token_start_index
@@ -26,7 +37,9 @@ class FrameFusion(nn.Module):
         else:
             self.sparsity_list = sparsity_list
 
-    def forward(self, hidden_states, position_embeddings, attention_mask, self_attn_weights = None):
+    def forward(
+        self, hidden_states, position_embeddings, attention_mask, self_attn_weights=None
+    ):
         """
         This is the forward method of the FrameFusion class.
 
@@ -47,21 +60,34 @@ class FrameFusion(nn.Module):
         # pruning
         if q_len >1 and self.finish_merging == True and self.finish_pruning == False:
 
-            image_token_pruning_start_index = self.image_token_start_index.item()
-            image_token_pruning_length = self.image_token_length
-            # update image_token_pruning_length
-            image_token_pruning_length = (self.image_token_length - (self.original_length - q_len))
+            image_token_pruning_start_index: int = self.image_token_start_index.item()
+            image_token_pruning_length: int = (self.image_token_length - (self.original_length - q_len)).item()
 
             last_layer_attention = self_attn_weights
             last_layer_attention_avg = torch.mean(last_layer_attention, dim=(1,2))[0]
             last_layer_attention_avg_image = last_layer_attention_avg[image_token_pruning_start_index:image_token_pruning_start_index+image_token_pruning_length]
-            
+
             pruning_ratio = self._compute_pruning_ratio(self.sparsity_list, self.cost)
-            top_attention_rank_index = last_layer_attention_avg_image.topk(round(image_token_pruning_length*(1-pruning_ratio))).indices + image_token_pruning_start_index
-            
-            keep_indexs = torch.cat( (torch.arange(image_token_pruning_start_index,device=device), top_attention_rank_index, torch.arange(image_token_pruning_start_index+image_token_pruning_length, q_len, device=device)))
+            top_attention_rank_index = (
+                last_layer_attention_avg_image.topk(
+                    round(image_token_pruning_length * (1 - pruning_ratio))
+                ).indices
+                + image_token_pruning_start_index
+            )
+
+            keep_indexs = torch.cat(
+                (
+                    torch.arange(image_token_pruning_start_index, device=device),
+                    top_attention_rank_index,
+                    torch.arange(
+                        image_token_pruning_start_index + image_token_pruning_length,
+                        q_len,
+                        device=device,
+                    ),
+                )
+            )
             keep_indexs = keep_indexs.sort().values
-            
+
             hidden_states = hidden_states[:,keep_indexs,:] 
             position_embeddings[0] = position_embeddings[0][:,keep_indexs,:]
             position_embeddings[1] = position_embeddings[1][:,keep_indexs,:]
@@ -77,7 +103,7 @@ class FrameFusion(nn.Module):
             # prefill
             sparsity_upper_bound = self._compute_pruning_ratio(self.sparsity_list, self.cost)
             similarity_by_patch, token_index_by_patch = self.compute_similarity_and_token_index_by_patch(hidden_states, self.patch_type, self.patch_num) # only support bsz = 1
-            
+
             frame_token_num = torch.sum(self.patch_type != TEXT_TOKEN).item()
             merge_index_by_patch = torch.where(similarity_by_patch >= self.similarity_lower_bound)[1]
             above_k_ratio = merge_index_by_patch.shape[0] / frame_token_num
@@ -94,8 +120,7 @@ class FrameFusion(nn.Module):
 
                 self.finish_merging = True
                 self.finish_pruning = True
-                
-                
+
             hidden_states, token_mask = self.merge_tokens_and_get_mask(hidden_states, similarity_by_patch, token_index_by_patch, merge_index_by_patch)
             # here only bsz=1
             # update patch type
@@ -136,7 +161,6 @@ class FrameFusion(nn.Module):
         token_index_by_patch = []
         similarity_by_patch = []
 
-
         token_patch_type_by_patch, token_index_by_patch = torch.where(
             token_patch_type == torch.arange(patch_num, device=device)[:, None]
         )
@@ -171,7 +195,6 @@ class FrameFusion(nn.Module):
 
         assert similarity_by_patch.shape[1] == token_index_by_patch.shape[1]
         return similarity_by_patch, token_index_by_patch
-
 
     @staticmethod
     def merge_tokens_and_get_mask(hidden_states: torch.Tensor, similarity_by_patch, token_index_by_patch, merge_index_by_patch):
@@ -248,7 +271,6 @@ class FrameFusion(nn.Module):
             bsz_index,
             token_index_by_patch[bsz_index, token_merge_start_index_in_patch],
         ] /= (merge_nums[None, :, None] + 1)
-        
 
         return hidden_states, keep_mask
 
@@ -275,7 +297,7 @@ class FrameFusion(nn.Module):
         if remain_calcution/((num_layers-list_length)*s) > 1:
             return 0
         return 1 - (remain_calcution/((num_layers-list_length)*s))    
-    
+
 def cosine_similarity(mat1, mat2):
     dot_product = torch.sum(mat1*mat2, dim=-1)
     norm_vec1 = torch.norm(mat1, dim=-1)
