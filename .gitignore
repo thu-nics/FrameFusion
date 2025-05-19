@@ -5,6 +5,7 @@ local/
 figures/
 data/
 VNBench/
+wandb/
 
 *.pyc
 *.json

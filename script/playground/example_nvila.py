@@ -14,7 +14,8 @@ def main() -> None:
     parser.add_argument("--model-path", "-m", type=str, default="Efficient-Large-Model/NVILA-8B-Video")
     parser.add_argument("--conv-mode", "-c", type=str, default="auto")
     parser.add_argument("--text", type=str)
-    parser.add_argument("--media", type=str, nargs="+", default="example/video/Tom_Jerry.mp4")
+    parser.add_argument("--media", type=str, nargs="+", default="example/video/Tom_Jerry.mp4") 
+    # For nvila, we also support image input. Simply give the path of the image / list of images to use. Note that it is a native support by treating each image patch as one frame.
 
     # FrameFusion arguments
     parser.add_argument("--framefusion-cost", type=float, default=0.3, help="FrameFusion cost")

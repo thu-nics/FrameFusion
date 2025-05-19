@@ -17,14 +17,15 @@ try:
     from llava.model.language_model.llava_qwen import LlavaQwenForCausalLM
     from framefusion.models.llava_video.modeling_llava_video import prepare_inputs_labels_for_multimodal_get_patch_type
     SKIP_LLAVA_NEXT = False
-except ModuleNotFoundError:
+except (ModuleNotFoundError):
+    # ImportError or ModuleNotFoundError
     SKIP_LLAVA_NEXT = True
     print("Skipping import from LLAVA-NEXT")
 
 try:
     from llava.model import LlavaLlamaModel
     SKIP_NVILA = False
-except ModuleNotFoundError:
+except (ModuleNotFoundError):
     SKIP_NVILA = True
     print("Skipping import from VILA")
 
@@ -89,6 +90,9 @@ def apply_framefusion(model, cost, similarity_lower_bound, ratio_lower_bound):
         attention_key = "self_attn"
 
     else:
+        print(f"Model not supported")
+        print(f"Model type: {type(model)}")
+        print(model)
         raise NotImplementedError
 
     replace_framefusion_forward(

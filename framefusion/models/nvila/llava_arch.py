@@ -50,10 +50,12 @@ def _embed(
             patch_type = torch.full((batch_size, length), TEXT_TOKEN, dtype=torch.long, device = text_embeds[0].device)
             patch_num = media_embeds['video'][0].shape[0] / num_frames
         if 'image' in media_embeds:
-            length = text_embeds[0].shape[0] + media_embeds['image'][0].shape[0] - 1
+            # Calculate total length considering all images in media_embeds['image']
+            total_image_length = sum(img.shape[0] for img in media_embeds['image'])
+            length = text_embeds[0].shape[0] + total_image_length - len(media_embeds['image'])
             patch_type = torch.full((batch_size, length), TEXT_TOKEN, dtype=torch.long, device = text_embeds[0].device)
             patch_num = 1
-            num_frames = media_embeds['image'][0].shape[0]
+            num_frames = total_image_length
         ### end modification by framefusion ###
 
 
@@ -82,7 +84,8 @@ def _embed(
 
             ### start modification by framefusion ###
             seq = torch.arange(patch_num, device = patch_type.device).repeat(int(num_frames))
-            patch_type[k, inputs_mk[0].shape[0]:inputs_mk[0].shape[0]+inputs_mk[1].shape[0]] = seq
+            # assuming the first and last inputs_mk are text embeddings and image embeddings respectively
+            patch_type[k, inputs_mk[0].shape[0]:sum([inputs_mk[i].shape[0] for i in range(len(inputs_mk)-1)])] = seq
             ### end modification by framefusion ###
 
         ### Framefusion edit start ###
