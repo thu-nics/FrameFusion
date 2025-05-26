@@ -22,6 +22,7 @@ Feel free to star the repo or cite the paper if you find it interesting.
 
 * [2025/04] Support NVILA model family
 
+
 ## Environment Setup
 
 ### General
@@ -151,5 +152,13 @@ If you have any questions on applying FrameFusion to a new model, please feel fr
 * [Efficient-Large-Model/NVILA-Lite-2B](https://huggingface.co/Efficient-Large-Model/NVILA-Lite-2B)
 * [Efficient-Large-Model/NVILA-8B-Video](https://huggingface.co/Efficient-Large-Model/NVILA-8B-Video)
 * [Efficient-Large-Model/NVILA-Lite-15B-Video](https://huggingface.co/Efficient-Large-Model/NVILA-Lite-15B-Video)
+
+### Qwen2-VL
+
+* [Qwen/Qwen2-VL-7B-Instruct](https://huggingface.co/Qwen/Qwen2-VL-7B-Instruct)
+
+### InternVL2_5
+
+* [OpenGVLab/InternVL2_5-8B](https://huggingface.co/OpenGVLab/InternVL2_5-8B)
 
 

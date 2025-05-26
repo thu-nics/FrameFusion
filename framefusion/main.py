@@ -60,8 +60,11 @@ class FrameFusion(nn.Module):
         # pruning
         if q_len >1 and self.finish_merging == True and self.finish_pruning == False:
 
-            image_token_pruning_start_index: int = self.image_token_start_index.item()
-            image_token_pruning_length: int = (self.image_token_length - (self.original_length - q_len)).item()
+            def to_int(x):
+                return x.item() if isinstance(x, torch.Tensor) else int(x)
+            image_token_pruning_start_index = to_int(self.image_token_start_index)
+            image_token_pruning_length = to_int(self.image_token_length - (self.original_length - q_len))
+
 
             last_layer_attention = self_attn_weights
             last_layer_attention_avg = torch.mean(last_layer_attention, dim=(1,2))[0]
@@ -89,8 +92,10 @@ class FrameFusion(nn.Module):
             keep_indexs = keep_indexs.sort().values
 
             hidden_states = hidden_states[:,keep_indexs,:] 
-            position_embeddings[0] = position_embeddings[0][:,keep_indexs,:]
-            position_embeddings[1] = position_embeddings[1][:,keep_indexs,:]
+
+            position_embeddings = self.position_embedding_handler_at_pruning(position_embeddings, keep_indexs)
+
+
             if attention_mask != None:
                 attention_mask = attention_mask[:,:,keep_indexs,:][:,:,:,keep_indexs]
             self.finish_pruning = True
@@ -126,12 +131,51 @@ class FrameFusion(nn.Module):
             # update patch type
             self.patch_type = self.patch_type.to(device)[token_mask].reshape(bsz, -1)
             hidden_states = hidden_states[token_mask, :].reshape(bsz, -1, hidden_size)
-            position_embeddings[0] = position_embeddings[0][:,token_mask[0],:]
-            position_embeddings[1] = position_embeddings[1][:,token_mask[0],:]
+
+            position_embeddings = self.position_embedding_handler_at_merging(position_embeddings, token_mask)
+
             if attention_mask is not None:
                 attention_mask = attention_mask[:,:,token_mask[0],:][:,:,:,token_mask[0]]
 
         return hidden_states, position_embeddings, attention_mask
+
+    def position_embedding_handler_at_pruning(self, position_embeddings, keep_indexs):
+        if type(position_embeddings) == list:
+            assert len(position_embeddings) == 2
+            if position_embeddings[0].ndim == 4:
+                position_embeddings[0] = position_embeddings[0][:,:,keep_indexs,:]
+                position_embeddings[1] = position_embeddings[1][:,:,keep_indexs,:]
+            else:
+                position_embeddings[0] = position_embeddings[0][:,keep_indexs,:]
+                position_embeddings[1] = position_embeddings[1][:,keep_indexs,:]
+        elif type(position_embeddings) == torch.Tensor:
+            if position_embeddings.ndim == 2:
+                position_embeddings = position_embeddings[:,keep_indexs]
+            else:
+                raise NotImplementedError("Only support 2D position embeddings")
+        else:
+            raise NotImplementedError("Only support list or tensor for position embeddings")
+        return position_embeddings
+    
+    
+    def position_embedding_handler_at_merging(self, position_embeddings, token_mask):
+        if type(position_embeddings) == list:
+            # (cos, sin)
+            assert len(position_embeddings) == 2
+            if position_embeddings[0].ndim == 4:
+                position_embeddings[0] = position_embeddings[0][:,:,token_mask[0],:]
+                position_embeddings[1] = position_embeddings[1][:,:,token_mask[0],:]
+            else:
+                position_embeddings[0] = position_embeddings[0][:,token_mask[0],:]
+                position_embeddings[1] = position_embeddings[1][:,token_mask[0],:]
+        elif type(position_embeddings) == torch.Tensor:
+            if position_embeddings.ndim == 2:
+                position_embeddings = position_embeddings[:,token_mask[0]]
+            else:
+                raise NotImplementedError("Only support 2D position embeddings")
+        else:
+            raise NotImplementedError("Only support list or tensor for position embeddings")
+        return position_embeddings
 
     @staticmethod
     def compute_similarity_and_token_index_by_patch(hidden_states, token_patch_type, patch_num):

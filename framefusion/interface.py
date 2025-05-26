@@ -11,8 +11,11 @@ from framefusion.main import FrameFusion
 from framefusion.utils import TEXT_TOKEN, IGNORE_TOKEN, get_attr_by_name
 
 # model types
-from transformers import LlavaNextVideoForConditionalGeneration
-from framefusion.models.nvila.llava_arch import _embed
+from transformers import LlavaNextVideoForConditionalGeneration, Qwen2VLForConditionalGeneration
+from framefusion.models.qwenvl.modeling_qwen2_vl import forward
+
+from framefusion.models.internvl.modeling_internvl_chat import generate
+
 try:
     from llava.model.language_model.llava_qwen import LlavaQwenForCausalLM
     from framefusion.models.llava_video.modeling_llava_video import prepare_inputs_labels_for_multimodal_get_patch_type
@@ -25,6 +28,7 @@ except (ModuleNotFoundError):
 try:
     from llava.model import LlavaLlamaModel
     SKIP_NVILA = False
+    from framefusion.models.nvila.llava_arch import _embed
 except (ModuleNotFoundError):
     SKIP_NVILA = True
     print("Skipping import from VILA")
@@ -34,6 +38,10 @@ from framefusion.models.llava_next_video.modeling_llava_next_video import _merge
 
 from framefusion.models.minicpmv.modeling_minicpmv import get_vllm_embedding
 from framefusion.models.qwen2.modeling_qwen2 import Qwen2Model_merge_then_fastv_cost_given_forward, Qwen2DecoderLayer_merge_then_prune_by_cost_forward, Qwen2SdpaAttention_merge_then_prune_by_cost_forward
+
+from framefusion.models.qwen2.modeling_qwen2_vl import Qwen2VLModel_merge_then_fastv_cost_given_forward, Qwen2VLDecoderLayer_merge_then_fastv_cost_given_forward, Qwen2VLSdpaAttention_merge_then_fastv_cost_given_forward
+
+from framefusion.models.internvl.modeling_internlm2 import InternLM2Model_merge_then_fastv_cost_given_forward, InternLM2DecoderLayer_merge_then_prune_by_cost_forward, InternLM2Attention_merge_then_prune_by_cost_forward
 
 
 def apply_framefusion(model, cost, similarity_lower_bound, ratio_lower_bound):
@@ -89,6 +97,26 @@ def apply_framefusion(model, cost, similarity_lower_bound, ratio_lower_bound):
         decoder_key = "layers"
         attention_key = "self_attn"
 
+    # Qwen2vl Model
+    elif isinstance(model, Qwen2VLForConditionalGeneration):
+        model.forward = MethodType(forward, model)
+        llm_forward = Qwen2VLModel_merge_then_fastv_cost_given_forward
+        decoder_forward = Qwen2VLDecoderLayer_merge_then_fastv_cost_given_forward
+        attention_forward = Qwen2VLSdpaAttention_merge_then_fastv_cost_given_forward
+        llm_key = "model"
+        decoder_key = "layers"
+        attention_key = "self_attn"
+
+    # InternVL2_5 Model
+    elif model.config.architectures[0] == 'InternVLChatModel':
+        model.generate = MethodType(generate, model)
+        llm_forward = InternLM2Model_merge_then_fastv_cost_given_forward
+        decoder_forward = InternLM2DecoderLayer_merge_then_prune_by_cost_forward
+        attention_forward = InternLM2Attention_merge_then_prune_by_cost_forward
+        llm_key = "language_model.model"
+        decoder_key = "layers"
+        attention_key = "attention"
+
     else:
         print(f"Model not supported")
         print(f"Model type: {type(model)}")
@@ -125,6 +153,15 @@ def get_token_type(model):
     # NVILA Model
     elif (not SKIP_NVILA) and isinstance(model, LlavaLlamaModel):
         model._embed = MethodType(_embed, model)
+    
+    # Qwen2vl Model
+    elif isinstance(model, Qwen2VLForConditionalGeneration):
+        model.forward = MethodType(forward, model)
+    
+
+    # InternVL2_5 Model
+    elif model.config.architectures[0] == 'InternVLChatModel':
+        model.generate = MethodType(generate, model)
     else:
         raise NotImplementedError
 
