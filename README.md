@@ -32,19 +32,19 @@ conda create -n framefusion python=3.10
 conda activate framefusion
 ```
 
-Install the dependencies:
-
-```bash
-pip install -r requirements.txt
-```
-
-Install FrameFusion:
+Install FrameFusion with core dependencies:
 
 ```bash
 pip install -e .
 ```
 
-### Working with Other Models
+To additionally install the recommended packages for a specific model, like `llava-video`:
+
+```bash
+pip install -e ".[llava-video]"
+```
+
+### Working with NVILA and Llava-Video
 
 **Important:** `NVILA` and `Llava-Video` have conflicting architectures. **FrameFusion** supports both, but please install only one to avoid conflicts.
 

@@ -1,0 +1,60 @@
+[build-system]
+requires = ["setuptools>=45", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "framefusion"
+version = "0.1.0"
+description = "FrameFusion: Combining Similarity and Importance for Video Token Reduction on Large Visual Language Models"
+readme = "README.md"
+requires-python = ">=3.10"
+license = {text = "MIT"}
+classifiers = [
+    "Intended Audience :: Developers",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3.10",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
+
+dependencies = [
+    "torch==2.4.1",
+    "torchvision==0.19.1",
+    "transformers==4.45.2",
+    "accelerate==1.0.1",
+    "datasets==3.2.0",
+]
+
+[project.optional-dependencies]
+llava-video = [
+    "einops",
+    "decord",
+    "av",
+    "sentencepiece",
+]
+
+nvila = [
+    # NVILA dependencies are handled by the VILA repository installation
+    # This is kept for compatibility but users should follow the README instructions
+]
+
+minicpm-v = [
+    # TODO: add MiniCPM-V specific dependencies if needed
+]
+
+qwen2-vl = [
+    "qwen-vl-utils==0.0.11",
+]
+
+internvl2_5 = [
+    # TODO: Add InternVL2.5 specific dependencies if needed
+]
+
+[project.urls]
+Homepage = "https://thu-nics.github.io/FrameFusion_Project_Page/"
+Repository = "https://github.com/thu-nics/FrameFusion"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["framefusion*"]
