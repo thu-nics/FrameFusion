@@ -7,14 +7,11 @@ FrameFusion reduces the number of tokens in Large Vision-Language Models (LVLMs)
 Feel free to star the repo or cite the paper if you find it interesting.
 
 ```bibtex
-@misc{fu2024framefusion,
-      title={FrameFusion: Combining Similarity and Importance for Video Token Reduction on Large Visual Language Models}, 
-      author={Tianyu Fu and Tengxuan Liu and Qinghao Han and Guohao Dai and Shengen Yan and Huazhong Yang and Xuefei Ning and Yu Wang},
-      year={2024},
-      eprint={2501.01986},
-      archivePrefix={arXiv},
-      primaryClass={cs.CV},
-      url={https://arxiv.org/abs/2501.01986}, 
+@article{fu2024framefusion,
+  title={FrameFusion: Combining Similarity and Importance for Video Token Reduction on Large Visual Language Models},
+  author={Fu, Tianyu and Liu, Tengxuan and Han, Qinghao and Dai, Guohao and Yan, Shengen and Yang, Huazhong and Ning, Xuefei and Wang, Yu},
+  journal={arXiv preprint arXiv:2501.01986},
+  year={2024}
 }
 ```
 
