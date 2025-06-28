@@ -17,6 +17,8 @@ Feel free to star the repo or cite the paper if you find it interesting.
 
 ## News
 
+* [2025/06] Our paper is accepted by ICCV'25
+
 * [2025/05] Support Qwen2-VL and InternVL2.5
 
 * [2025/04] Support NVILA model family
