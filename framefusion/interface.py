@@ -100,6 +100,8 @@ def apply_framefusion(model, cost, similarity_lower_bound, ratio_lower_bound):
     # Qwen2vl Model
     elif isinstance(model, Qwen2VLForConditionalGeneration):
         model.forward = MethodType(forward, model)
+        # Initialize rope_deltas attribute to prevent AttributeError
+        model.rope_deltas = None
         llm_forward = Qwen2VLModel_merge_then_fastv_cost_given_forward
         decoder_forward = Qwen2VLDecoderLayer_merge_then_fastv_cost_given_forward
         attention_forward = Qwen2VLSdpaAttention_merge_then_fastv_cost_given_forward
@@ -157,6 +159,8 @@ def get_token_type(model):
     # Qwen2vl Model
     elif isinstance(model, Qwen2VLForConditionalGeneration):
         model.forward = MethodType(forward, model)
+        # Initialize rope_deltas attribute to prevent AttributeError
+        model.rope_deltas = None
     
 
     # InternVL2_5 Model
