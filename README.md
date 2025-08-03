@@ -52,7 +52,7 @@ pip install -e .
 
 **Important:** `NVILA` and `Llava-Video` have conflicting architectures. **FrameFusion** supports both, but please install only one to avoid conflicts.
 
-#### Option 1: Llava-Video
+#### Llava-Video
 To install Llava-Video LVLM dependencies:
 
 1. Clone the [LLaVA-NeXT repository](https://github.com/LLaVA-VL/LLaVA-NeXT):
@@ -65,7 +65,7 @@ To install Llava-Video LVLM dependencies:
    pip install -e .
    ```
 
-#### Option 2: NVILA
+#### NVILA
 To install NVILA dependencies:
 
 1. Clone the [VILA repository](https://github.com/NVlabs/VILA):
@@ -82,6 +82,10 @@ To install NVILA dependencies:
    pip install -e .
    ```
 
+#### Qwen2-VL
+After standard installation, please reinstall `transformers==4.51.3` to ensure version compatibility.
+
+For all other models, continue using `transformers==4.45.2`.
 
 ## How to
 
@@ -148,8 +152,6 @@ If you have any questions on applying FrameFusion to a new model, please feel fr
 * [lmms-lab/LLaVA-Video-7B-Qwen2](https://huggingface.co/lmms-lab/LLaVA-Video-7B-Qwen2)
 * [lmms-lab/LLaVA-Video-72B-Qwen2](https://huggingface.co/lmms-lab/LLaVA-Video-72B-Qwen2)
 
-
-
 ### NVILA
 
 * [Efficient-Large-Model/NVILA-Lite-2B](https://huggingface.co/Efficient-Large-Model/NVILA-Lite-2B)
@@ -158,8 +160,11 @@ If you have any questions on applying FrameFusion to a new model, please feel fr
 
 ### Qwen2-VL
 
-* [Qwen/Qwen2-VL-7B-Instruct](https://huggingface.co/Qwen/Qwen2-VL-7B-Instruct)
+> Note: Please use `transformers==4.51.3` when running Qwen2-VL series models.
 
+* [Qwen/Qwen2-VL-2B-Instruct](https://huggingface.co/Qwen/Qwen2-VL-2B-Instruct)
+* [Qwen/Qwen2-VL-7B-Instruct](https://huggingface.co/Qwen/Qwen2-VL-7B-Instruct)
+  
 ### InternVL2_5
 
 * [OpenGVLab/InternVL2_5-8B](https://huggingface.co/OpenGVLab/InternVL2_5-8B)
