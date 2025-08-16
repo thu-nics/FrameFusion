@@ -6,6 +6,10 @@
 
 FrameFusion reduces the number of tokens in Large Vision-Language Models (LVLMs) by combining similarity-based merging with importance-based pruning. It achieves a 70% vision token reduction, 3.4–4.4× LLM speedups, and 1.6–1.9× end-to-end speedups with minimal performance impact.
 
+![Demo](example/demo/demo.gif)
+
+> This demo can be reproduced with `script/demo/llava_video_compare.py`.
+
 Feel free to star the repo or cite the paper if you find it interesting.
 
 ```bibtex
@@ -18,6 +22,8 @@ Feel free to star the repo or cite the paper if you find it interesting.
 ```
 
 ## News
+
+* [2025/08] Update webpage, check our interactive demos [here](https://thu-nics.github.io/FrameFusion_Project_Page/)
 
 * [2025/06] Our paper is accepted by ICCV'25
 
@@ -34,12 +40,6 @@ Create a new environment:
 ```bash
 conda create -n framefusion python=3.10
 conda activate framefusion
-```
-
-Install the dependencies:
-
-```bash
-pip install -r requirements.txt
 ```
 
 Install FrameFusion:
@@ -62,7 +62,7 @@ To install Llava-Video LVLM dependencies:
    ```
 2. Install via:
    ```bash
-   pip install -e .
+   pip install -e .[llava-video]
    ```
 
 #### NVILA
@@ -84,6 +84,10 @@ To install NVILA dependencies:
 
 #### Qwen2-VL
 After standard installation, please reinstall `transformers==4.51.3` to ensure version compatibility.
+
+```bash
+pip install -e .[qwen2-vl]
+```
 
 For all other models, continue using `transformers==4.45.2`.
 

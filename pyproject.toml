@@ -1,0 +1,48 @@
+[build-system]
+requires = [
+  "setuptools>=68",
+  "wheel",
+]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "framefusion"
+version = "1.0.0"
+description = "FrameFusion: Combining Similarity and Importance for Video Token Reduction on Large Visual Language Models"
+readme = "README.md"
+license = { text = "Apache-2.0" }
+requires-python = ">=3.10"
+authors = [
+  { name = "Tianyu Fu" },
+  { name = "Tengxuan Liu" },
+  { name = "Qinghao Han" }
+]
+dependencies = [
+  "torch==2.4.1",
+  "torchvision==0.19.1",
+  "transformers==4.45.2",
+  "accelerate==1.0.1",
+  "datasets==3.2.0",
+  "gradio==5.42.0",
+]
+
+[project.optional-dependencies]
+llava-video = [
+  "einops",
+  "decord",
+  "av",
+  "sentencepiece",
+]
+
+# Qwen2-VL requires a different transformers version
+qwen2-vl = [
+  "transformers==4.51.3",
+]
+
+[tool.setuptools]
+include-package-data = true
+
+[tool.setuptools.packages.find]
+include = ["framefusion*"]
+
+

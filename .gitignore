@@ -6,6 +6,7 @@ figures/
 data/
 VNBench/
 wandb/
+.gradio/
 
 *.pyc
 *.json
@@ -16,3 +17,4 @@ wandb/
 *.pt
 *.sh
 *.nsys-rep
+*.log
