@@ -118,7 +118,20 @@ apply_framefusion(model, cost=0.3, similarity_lower_bound=0.6, ratio_lower_bound
 # use the model as usual
 ```
 
-### Adept to new models
+### Evaluate FrameFusion
+
+We use [lmms-eval](https://github.com/EvolvingLMMs-Lab/lmms-eval/tree/main) to evaluate FrameFusion. 
+To apply FrameFusion, clone the official lmms-eval repository, install it from source, and insert the following lines into `evaluator.py` after the standard model initialization of `lm` (around [line187](https://github.com/EvolvingLMMs-Lab/lmms-eval/blob/main/lmms_eval/evaluator.py#L187)):
+
+```
+from framefusion.interface import apply_framefusion
+model_to_compress = getattr(lm, "_model", lm.model)
+apply_framefusion(model_to_compress, cost=0.3, similarity_lower_bound=<S_th from our paper>, ratio_lower_bound=0.1)
+```
+
+Please refer to our paper for the recommended similarity_lower_bound (S_th) values for different models.
+
+### Adapt to new models
 
 #### Understand Code Structure
 
