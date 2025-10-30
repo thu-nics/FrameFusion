@@ -131,6 +131,21 @@ apply_framefusion(model_to_compress, cost=0.3, similarity_lower_bound=<S_th from
 
 Please refer to our paper for the recommended similarity_lower_bound (S_th) values for different models.
 
+#### Example
+
+As an example, you can evaluate FrameFusion on LLaVA-Video-7B-Qwen2 model using the following command.
+
+```bash
+python3 -m accelerate.commands.launch --num_processes=8 --main_process_port 28997 -m lmms_eval \
+--model llava_vid \
+--model_args pretrained=lmms-lab/LLaVA-Video-7B-Qwen2,device_map=auto,max_frames_num=64,overwrite=False,force_sample=True,torch_dtype="bfloat16",add_time_instruction=True,conv_template=qwen_1_5 \
+--tasks $BENCHMARK \
+--batch_size 1 \
+--log_samples \
+--log_samples_suffix llava_vid_7b \
+--output_path ./logs/
+```
+
 ### Adapt to new models
 
 #### Understand Code Structure
@@ -185,5 +200,4 @@ If you have any questions on applying FrameFusion to a new model, please feel fr
 ### InternVL2_5
 
 * [OpenGVLab/InternVL2_5-8B](https://huggingface.co/OpenGVLab/InternVL2_5-8B)
-
 
