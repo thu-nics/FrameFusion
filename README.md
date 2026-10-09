@@ -5,7 +5,7 @@
   <h3>Combining Similarity and Importance for Video Token Reduction on Large Visual Language Models</h3>
 
   <p>
-    <a href="https://thu-nics.github.io/FrameFusion_Project_Page/">🌐 <b>Project Page</b></a> •
+    <a href="https://fuvty.github.io/thinking_yard_project_page/projects/framefusion/">🌐 <b>Project Page</b></a> •
     <a href="https://arxiv.org/abs/2501.01986">📑 <b>arXiv</b></a>
   </p>
 </div>
@@ -30,7 +30,7 @@ Feel free to star the repo or cite the paper if you find it interesting.
 
 ## News
 
-* [2025/08] Update webpage, check our interactive demos [here](https://thu-nics.github.io/FrameFusion_Project_Page/)
+* [2025/08] Update webpage, check our interactive demos [here](https://fuvty.github.io/thinking_yard_project_page/projects/framefusion/)
 
 * [2025/06] Our paper is accepted by ICCV'25
 
@@ -214,7 +214,7 @@ Explore more efficient LLM projects from us:
 
 <table style="border: none; border-collapse: collapse;" align="center">
 <tr>
-<td align="center" valign="top" width="25%" style="border: none; border-right: 1px solid rgba(128, 128, 128, 0.3); padding: 10px; min-width: 50px;">
+<td align="center" valign="top" width="20%" style="border: none; border-right: 1px solid rgba(128, 128, 128, 0.3); padding: 10px; min-width: 50px;">
 <div style="height: 5em; display: flex; align-items: center; justify-content: center;">
 <a href="https://github.com/thu-nics/R2R">
 <img src="https://raw.githubusercontent.com/thu-nics/R2R/main/resource/logo.png" style="max-height: 5em; max-width: 100%; height: auto; width: auto;" />
@@ -223,7 +223,16 @@ Explore more efficient LLM projects from us:
 <a href="https://github.com/thu-nics/R2R"><b>R2R</b></a>
 <br/><sub>Token-level routing for reasoning LLMs</sub>
 </td>
-<td align="center" valign="top" width="25%" style="border: none; border-right: 1px solid rgba(128, 128, 128, 0.3); padding: 10px; min-width: 50px;">
+<td align="center" valign="top" width="20%" style="border: none; border-right: 1px solid rgba(128, 128, 128, 0.3); padding: 10px; min-width: 50px;">
+<div style="height: 5em; display: flex; align-items: center; justify-content: center;">
+<a href="https://github.com/thu-nics/TokenRouter">
+<img src="https://raw.githubusercontent.com/thu-nics/TokenRouter/main/resource/logo.png" alt="TokenRouter Logo" style="max-height: 5em; max-width: 100%; height: auto; width: auto;" />
+</a>
+</div>
+<a href="https://github.com/thu-nics/TokenRouter"><b>TkR</b></a>
+<br/><sub>Efficient serving for token-level LLM routing</sub>
+</td>
+<td align="center" valign="top" width="20%" style="border: none; border-right: 1px solid rgba(128, 128, 128, 0.3); padding: 10px; min-width: 50px;">
 <div style="height: 5em; display: flex; align-items: center; justify-content: center;">
 <a href="https://github.com/thu-nics/TaH">
 <img src="https://raw.githubusercontent.com/thu-nics/TaH/main/resource/logo.png" style="max-height: 5em; max-width: 100%; height: auto; width: auto;" />
@@ -232,7 +241,7 @@ Explore more efficient LLM projects from us:
 <a href="https://github.com/thu-nics/TaH"><b>TaH</b></a>
 <br/><sub>Selective latent thinking for reasoning LLMs</sub>
 </td>
-<td align="center" valign="top" width="25%" style="border: none; border-right: 1px solid rgba(128, 128, 128, 0.3); padding: 10px; min-width: 50px;">
+<td align="center" valign="top" width="20%" style="border: none; border-right: 1px solid rgba(128, 128, 128, 0.3); padding: 10px; min-width: 50px;">
 <div style="height: 5em; display: flex; align-items: center; justify-content: center;">
 <a href="https://github.com/thu-nics/C2C">
 <img src="https://raw.githubusercontent.com/thu-nics/C2C/main/resource/logo.png" style="max-height: 5em; max-width: 100%; height: auto; width: auto;" />
@@ -241,7 +250,7 @@ Explore more efficient LLM projects from us:
 <a href="https://github.com/thu-nics/C2C"><b>C2C</b></a>
 <br/><sub>Communicate through KV-Cache between LLMs</sub>
 </td>
-<td align="center" valign="top" width="25%" style="border: none; padding: 10px; min-width: 50px;">
+<td align="center" valign="top" width="20%" style="border: none; padding: 10px; min-width: 50px;">
 <div style="height: 5em; display: flex; align-items: center; justify-content: center;">
 <a href="https://github.com/thu-nics/MoA">
 <img src="https://raw.githubusercontent.com/thu-nics/MoA/master/resource/logo.png" style="max-height: 5em; max-width: 100%; height: auto; width: auto;" />
